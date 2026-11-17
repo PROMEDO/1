@@ -7,7 +7,6 @@ import React from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowUpRight,
-  Calendar,
   CheckCircle2,
   Lightbulb,
   Megaphone,
@@ -17,7 +16,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useTranslation } from '../../utils/i18n';
-import { getExpiryDetails } from '../../utils/storage';
 import { DEFAULT_MEDIA_ASSETS } from '../../utils/businessDefaults';
 import { Ml7Text } from '../../components/Ml7Text';
 import { useDashboard } from './DashboardContext';
@@ -26,7 +24,6 @@ export const HomePage: React.FC = () => {
   const { t, isRtl } = useTranslation();
   const prefersReducedMotion = useReducedMotion();
   const {
-    mainRest,
     rest,
     resolvedPlan,
     terms,
@@ -35,10 +32,7 @@ export const HomePage: React.FC = () => {
     setActiveTab,
     activeRid,
     mainRid,
-    customTabLabel,
   } = useDashboard();
-
-  const expiry = getExpiryDetails(mainRest.e);
 
   const defaultMedia =
     terms.isStore ? DEFAULT_MEDIA_ASSETS.store : DEFAULT_MEDIA_ASSETS.restaurant;
@@ -179,21 +173,17 @@ export const HomePage: React.FC = () => {
           }}
         />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '12px', color: 'var(--brand-ink, #34D399)', fontWeight: 800, marginBottom: '2px' }}>
-            {activeRid === mainRid
-              ? customTabLabel('home', 'لوحة التحكم الرئيسية')
-              : `إدارة فرع: ${rest.branchName || rest.n}`}
-          </div>
+          {activeRid !== mainRid && (
+            <div style={{ fontSize: '12px', color: 'var(--brand-ink, #34D399)', fontWeight: 800, marginBottom: '2px' }}>
+              {`إدارة فرع: ${rest.branchName || rest.n}`}
+            </div>
+          )}
           <h1 style={{ margin: '0 0 4px', fontSize: 'clamp(19px, 3vw, 24px)', fontWeight: 900, color: 'var(--ink)' }}>
             أهلاً بك في {rest.n} 👋
           </h1>
           <div className="mp-home-welcome-meta">
             <span>
               {t.activePlanLabel || 'الباقة الحالية'}: <b style={{ color: 'var(--brand-ink, #34D399)' }}>{resolvedPlan.plan.n}</b>
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <Calendar size={13} />
-              {t.planExpiryLabel || 'الانتهاء'}: <b style={{ color: expiry.isExp ? '#ef4444' : 'var(--ink)' }}>{expiry.text}</b>
             </span>
           </div>
         </div>
@@ -250,14 +240,11 @@ export const HomePage: React.FC = () => {
               >
                 <div className="mp-home-tip-main">
                   {tip.done ? (
-                    <CheckCircle2 size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '3px' }} />
+                    <CheckCircle2 size={18} style={{ color: '#10b981', flexShrink: 0 }} />
                   ) : (
-                    <Sparkles size={20} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '3px' }} />
+                    <Sparkles size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
                   )}
-                  <div className="mp-home-tip-copy">
-                    <b className="mp-home-tip-title">{tip.title}</b>
-                    <span className="mp-home-tip-desc">{tip.desc}</span>
-                  </div>
+                  <b className="mp-home-tip-title">{tip.title}</b>
                 </div>
 
                 {!tip.done && (

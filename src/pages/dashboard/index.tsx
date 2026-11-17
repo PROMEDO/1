@@ -156,26 +156,24 @@ const DashboardShell: React.FC = () => {
           href={supportWaHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn s"
+          className="sb-footer-item"
           onClick={() => {
             if (closeDrawer) setDrawerOpen(false);
           }}
-          style={{ width: '100%', justifyContent: 'center', gap: '7px', textDecoration: 'none' }}
         >
-          <MessageCircle size={15} style={{ color: '#25D366' }} />
+          <MessageCircle size={17} style={{ color: '#25D366', flexShrink: 0 }} />
           <span>احصل على مساعدة</span>
         </a>
 
         <button
           type="button"
-          className="btn s d"
+          className="sb-footer-item is-danger"
           onClick={() => {
             if (closeDrawer) setDrawerOpen(false);
             onLogout();
           }}
-          style={{ width: '100%', justifyContent: 'center', gap: '7px' }}
         >
-          <LogOut size={15} />
+          <LogOut size={17} style={{ flexShrink: 0 }} />
           <span>تسجيل الخروج</span>
         </button>
       </div>
