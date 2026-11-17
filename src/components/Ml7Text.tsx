@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import React, { useRef } from 'react';
+import { motion, useInView, useReducedMotion } from 'motion/react';
 
 interface Ml7TextProps {
   text: string;
@@ -28,6 +28,8 @@ export const Ml7Text: React.FC<Ml7TextProps> = ({
   style,
 }) => {
   const prefersReducedMotion = useReducedMotion();
+  const containerRef = useRef<HTMLSpanElement | null>(null);
+  const isInView = useInView(containerRef, { once: true, amount: 0.05 });
   const cleanText = String(text || '').trim();
 
   if (!cleanText) return null;
@@ -40,11 +42,12 @@ export const Ml7Text: React.FC<Ml7TextProps> = ({
     );
   }
 
+  const shouldAnimate = mode === 'mount' || isInView;
   const words = cleanText.split(/\s+/).filter(Boolean);
   let globalIndex = 0;
 
   return (
-    <span className={`ml7 ${className || ''}`.trim()} style={style}>
+    <span ref={containerRef} className={`ml7 ${className || ''}`.trim()} style={style}>
       {words.map((word, wIdx) => {
         const isArabicWord = ARABIC_SCRIPT_RE.test(word);
         const tokens = isArabicWord ? [word] : Array.from(word);
@@ -82,12 +85,7 @@ export const Ml7Text: React.FC<Ml7TextProps> = ({
                       transformOrigin: isRtl ? '100% 100%' : '0 100%',
                     }}
                     initial={initialState}
-                    {...(mode === 'mount'
-                      ? { animate: targetState }
-                      : {
-                          whileInView: targetState,
-                          viewport: { once: true, amount: 0.3 },
-                        })}
+                    animate={shouldAnimate ? targetState : initialState}
                     transition={{
                       duration: 1.5,
                       delay: tokenDelay,

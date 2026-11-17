@@ -170,8 +170,8 @@ export const HomePage: React.FC = () => {
           alt={rest.n}
           referrerPolicy="no-referrer"
           style={{
-            width: '58px',
-            height: '58px',
+            width: '56px',
+            height: '56px',
             borderRadius: '16px',
             objectFit: 'cover',
             border: '2px solid var(--brand)',
@@ -184,15 +184,14 @@ export const HomePage: React.FC = () => {
               ? customTabLabel('home', 'لوحة التحكم الرئيسية')
               : `إدارة فرع: ${rest.branchName || rest.n}`}
           </div>
-          <h1 style={{ margin: '0 0 4px', fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 900, color: 'var(--ink)' }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: 'clamp(19px, 3vw, 24px)', fontWeight: 900, color: 'var(--ink)' }}>
             أهلاً بك في {rest.n} 👋
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '12.5px', color: 'var(--muted)' }}>
+          <div className="mp-home-welcome-meta">
             <span>
               {t.activePlanLabel || 'الباقة الحالية'}: <b style={{ color: 'var(--brand-ink, #34D399)' }}>{resolvedPlan.plan.n}</b>
             </span>
-            <span>•</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <Calendar size={13} />
               {t.planExpiryLabel || 'الانتهاء'}: <b style={{ color: expiry.isExp ? '#ef4444' : 'var(--ink)' }}>{expiry.text}</b>
             </span>
@@ -200,39 +199,20 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Checklist Section: transparent to main grid background, shown when steps are still incomplete */}
+      {/* Checklist Section: transparent & borderless, shown when steps are still incomplete */}
       {!allTipsCompleted && (
         <section className="mp-home-section">
           <div className="mp-home-section-head">
-            <div className="mp-home-section-meta">
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '11px',
-                  background: 'rgba(245, 158, 11, 0.14)',
-                  color: '#f59e0b',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Lightbulb size={19} />
-              </div>
-
-              <span
-                style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#f59e0b',
-                  padding: '5px 12px',
-                  borderRadius: '10px',
-                  fontSize: '12.5px',
-                  fontWeight: 800,
-                }}
-              >
-                نسبة الاكتمال: {readinessPercent}%
-              </span>
-            </div>
+            <span
+              className="mp-home-section-badge"
+              style={{
+                background: 'rgba(245, 158, 11, 0.14)',
+                color: '#f59e0b',
+              }}
+            >
+              <Lightbulb size={15} />
+              <span>نسبة الاكتمال: {readinessPercent}%</span>
+            </span>
 
             <h2 className="mp-home-section-title">
               <Ml7Text
@@ -254,33 +234,29 @@ export const HomePage: React.FC = () => {
             </motion.p>
           </div>
 
-          <div style={{ borderTop: '1px solid color-mix(in srgb, var(--line) 75%, transparent)' }}>
+          <div className="mp-home-tips-list">
             {dynamicTips.map((tip, idx) => (
               <motion.div
                 key={tip.id}
                 className="mp-home-tip-row"
                 initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
+                viewport={{ once: true, amount: 0.1 }}
                 transition={{
                   duration: 0.85,
                   delay: prefersReducedMotion ? 0 : Math.min(idx * 0.08, 0.4),
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: '1 1 260px', minWidth: 0 }}>
+                <div className="mp-home-tip-main">
                   {tip.done ? (
-                    <CheckCircle2 size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '2px' }} />
+                    <CheckCircle2 size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '3px' }} />
                   ) : (
-                    <Sparkles size={20} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+                    <Sparkles size={20} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '3px' }} />
                   )}
-                  <div style={{ minWidth: 0 }}>
-                    <b style={{ display: 'block', fontSize: '14.5px', color: 'var(--ink)', marginBottom: '3px', lineHeight: 1.5 }}>
-                      {tip.title}
-                    </b>
-                    <span style={{ display: 'block', fontSize: '12.5px', color: 'var(--muted)', lineHeight: 1.65 }}>
-                      {tip.desc}
-                    </span>
+                  <div className="mp-home-tip-copy">
+                    <b className="mp-home-tip-title">{tip.title}</b>
+                    <span className="mp-home-tip-desc">{tip.desc}</span>
                   </div>
                 </div>
 
@@ -300,27 +276,21 @@ export const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* Clear & Practical Growth & Publishing Guide (large spacing above when checklist is present, transparent to main grid) */}
+      {/* Clear & Practical Growth & Publishing Guide */}
       <section
         className={`mp-home-section ${!allTipsCompleted ? 'mp-home-section--guide' : ''}`}
       >
         <div className="mp-home-section-head">
-          <div className="mp-home-section-meta">
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '11px',
-                background: 'var(--soft)',
-                color: 'var(--brand-ink, #34D399)',
-                display: 'grid',
-                placeItems: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <Megaphone size={19} />
-            </div>
-          </div>
+          <span
+            className="mp-home-section-badge"
+            style={{
+              background: 'var(--soft)',
+              color: 'var(--brand-ink, #34D399)',
+            }}
+          >
+            <Megaphone size={15} />
+            <span>نصائح لزيادة الطلبات</span>
+          </span>
 
           <h2 className="mp-home-section-title">
             <Ml7Text
@@ -336,7 +306,7 @@ export const HomePage: React.FC = () => {
             className="mp-home-section-sub"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.1 }}
             transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
             خطوات عملية بسيطة تحول متابعيك وزبائن المحل إلى طلبات مباشرة بدون عمولات.
@@ -352,20 +322,18 @@ export const HomePage: React.FC = () => {
                 className="mp-home-guide-card"
                 initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
+                viewport={{ once: true, amount: 0.1 }}
                 transition={{
                   duration: 0.96,
                   delay: prefersReducedMotion ? 0 : Math.min(idx * 0.11, 0.44),
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--brand-ink, #34D399)', fontWeight: 800, fontSize: '14.5px' }}>
+                <div className="mp-home-guide-title">
                   <IconComp size={17} style={{ flexShrink: 0 }} />
                   <span>{card.title}</span>
                 </div>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: 1.75 }}>
-                  {card.body}
-                </p>
+                <p className="mp-home-guide-body">{card.body}</p>
               </motion.div>
             );
           })}
