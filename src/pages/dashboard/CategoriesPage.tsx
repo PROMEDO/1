@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
   Clock,
+  Compass,
   Edit,
   Image as ImageIcon,
   Plus,
@@ -61,8 +62,21 @@ export const CategoriesPage: React.FC = () => {
 
   const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
   const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
+  const [showCatSearch, setShowCatSearch] = useState<boolean>(() => Boolean(searchCatQuery.trim()));
+  const catSearchInputRef = useRef<HTMLInputElement>(null);
 
+  const isSearchVisible = showCatSearch || Boolean(searchCatQuery.trim());
   const canReorder = !searchCatQuery.trim() && allCategories.length > 1;
+
+  const toggleCategorySearch = () => {
+    if (isSearchVisible) {
+      setSearchCatQuery('');
+      setShowCatSearch(false);
+    } else {
+      setShowCatSearch(true);
+      setTimeout(() => catSearchInputRef.current?.focus(), 20);
+    }
+  };
 
   const moveCategoryStep = (catId: string, dir: -1 | 1) => {
     const ids = allCategories.map((c) => c.id);
@@ -95,83 +109,130 @@ export const CategoriesPage: React.FC = () => {
   };
 
   const atCatLimit = resolvedPlan.maxCats !== -1 && allCategories.length >= resolvedPlan.maxCats;
+  const catLimitText =
+    resolvedPlan.maxCats === -1
+      ? `${allCategories.length}/∞`
+      : `${allCategories.length}/${resolvedPlan.maxCats}`;
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'var(--ink)', margin: 0 }}>
-              {customTabLabel('cats', 'الأقسام والتصنيفات')}
-            </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'var(--ink)', margin: 0 }}>
+          {customTabLabel('cats', 'الأقسام والتصنيفات')}
+        </h1>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={openNewCategoryModal}
+            style={{
+              background: atCatLimit ? 'rgba(148, 163, 184, 0.25)' : 'var(--brand)',
+              color: atCatLimit ? 'var(--muted)' : 'var(--on-brand)',
+              border: 0,
+              borderRadius: '10px',
+              padding: '9px 15px',
+              minHeight: '40px',
+              fontSize: '14px',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={17} />
+            <span>{atCatLimit ? 'الحد مكتمل 🔒' : 'إضافة قسم'}</span>
             <span
               className="tabular-nums"
               style={{
                 fontSize: '12px',
                 fontWeight: 800,
-                padding: '4px 10px',
-                borderRadius: '9px',
-                background: atCatLimit ? 'rgba(245, 158, 11, 0.14)' : 'var(--soft)',
-                color: atCatLimit ? '#f59e0b' : 'var(--brand)',
-                border: '1px solid var(--line)',
+                padding: '2px 7px',
+                borderRadius: '7px',
+                background: atCatLimit ? 'rgba(148, 163, 184, 0.2)' : 'rgba(0, 0, 0, 0.16)',
+                lineHeight: 1.3,
               }}
             >
-              {resolvedPlan.maxCats === -1
-                ? `${allCategories.length} / غير محدود`
-                : `${allCategories.length} / ${resolvedPlan.maxCats} قسم`}
+              {catLimitText}
             </span>
-          </div>
-        </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={openNewCategoryModal}
+          <button
+            type="button"
+            onClick={toggleCategorySearch}
+            className="btn s"
+            aria-expanded={isSearchVisible}
+            style={{
+              minHeight: '40px',
+              borderRadius: '10px',
+              padding: '9px 15px',
+              fontSize: '14px',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              borderColor: isSearchVisible ? 'var(--brand)' : undefined,
+              color: isSearchVisible ? 'var(--brand-ink, #34D399)' : undefined,
+            }}
+          >
+            <Compass size={17} />
+            <span>ابحث</span>
+          </button>
+        </div>
+      </div>
+
+      {isSearchVisible && (
+        <div
           style={{
-            background: atCatLimit ? 'rgba(148, 163, 184, 0.25)' : 'var(--brand)',
-            color: atCatLimit ? 'var(--muted)' : 'var(--on-brand)',
-            border: 0,
-            borderRadius: '10px',
-            padding: '10px 18px',
-            fontSize: '14px',
-            fontWeight: 800,
-            display: 'inline-flex',
+            ...surfaceCardStyle,
+            border: '1px solid var(--line)',
+            borderRadius: '12px',
+            padding: '10px 16px',
+            display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
+            gap: '10px',
+            marginBottom: '16px',
           }}
         >
-          <Plus size={17} />
-          <span>{atCatLimit ? 'الحد مكتمل 🔒' : 'إضافة قسم'}</span>
-        </button>
-      </div>
-
-      <div
-        style={{
-          ...surfaceCardStyle,
-          border: '1px solid var(--line)',
-          borderRadius: '12px',
-          padding: '10px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          marginBottom: '16px',
-        }}
-      >
-        <input
-          type="text"
-          value={searchCatQuery}
-          onChange={(e) => setSearchCatQuery(e.target.value)}
-          placeholder="بحث في الأقسام..."
-          style={{
-            border: 'none',
-            background: 'transparent',
-            width: '100%',
-            outline: 'none',
-            fontSize: '14.5px',
-            color: 'var(--ink)',
-          }}
-        />
-        <Search size={18} style={{ color: 'var(--muted)', marginInlineStart: '10px' }} />
-      </div>
+          <Search size={18} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+          <input
+            ref={catSearchInputRef}
+            type="text"
+            value={searchCatQuery}
+            onChange={(e) => setSearchCatQuery(e.target.value)}
+            placeholder="بحث في الأقسام..."
+            style={{
+              border: 'none',
+              background: 'transparent',
+              width: '100%',
+              outline: 'none',
+              fontSize: '14.5px',
+              color: 'var(--ink)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchCatQuery('');
+              setShowCatSearch(false);
+            }}
+            title="إغلاق البحث"
+            aria-label="إغلاق البحث"
+            style={{
+              background: 'transparent',
+              border: 0,
+              color: 'var(--muted)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
+              padding: '2px',
+              flexShrink: 0,
+            }}
+          >
+            <X size={17} />
+          </button>
+        </div>
+      )}
 
       {canReorder && (
         <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '10px', fontWeight: 600 }}>
