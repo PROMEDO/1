@@ -47,9 +47,7 @@ export const HomePage: React.FC = () => {
   interface MenuTip {
     id: string;
     done: boolean;
-    title: string;
-    desc: string;
-    actionLabel: string;
+    label: string;
     targetTab: 'cats' | 'menu' | 'set' | 'qr' | 'appearance';
   }
 
@@ -57,45 +55,37 @@ export const HomePage: React.FC = () => {
     {
       id: 'cats',
       done: allCategories.length >= 3,
-      title:
+      label:
         allCategories.length >= 3
-          ? `الأقسام منظمة بشكل رائع (${allCategories.length} أقسام) ✓`
-          : `أضف أقساماً إضافية لتسهيل التصفح (لديك حالياً ${allCategories.length} فقط)`,
-      desc: 'تقسيم القائمة إلى 3 أقسام على الأقل (مثلاً: الأكثر طلباً، العروض، المشروبات) يرفع سرعة اختيار الزبون.',
-      actionLabel: `إدارة ${terms.categoriesPlural}`,
+          ? `الأقسام منظمة (${allCategories.length} أقسام)`
+          : `أضف 3 أقسام على الأقل (${allCategories.length}/3)`,
       targetTab: 'cats',
     },
     {
       id: 'items',
       done: allItems.length >= 6,
-      title:
+      label:
         allItems.length >= 6
-          ? `تنوع ممتاز في ${terms.itemsPlural} (${allItems.length} عنصر) ✓`
-          : `أضف المزيد من ${terms.itemsPlural} لإغناء قائمتك (${allItems.length} حالياً)`,
-      desc: `ينصح بإضافة 6 ${terms.itemsPlural} أو أكثر مع وصف واضح وسعر وصورة حقيقية لكل عنصر لزيادة متوسط الفاتورة.`,
-      actionLabel: `إضافة ${terms.itemSingular}`,
+          ? `${terms.itemsPlural} مكتملة (${allItems.length})`
+          : `أضف 6 ${terms.itemsPlural} على الأقل (${allItems.length}/6)`,
       targetTab: 'menu',
     },
     {
       id: 'media',
       done: hasCustomLogo && hasCustomBanner,
-      title:
+      label:
         hasCustomLogo && hasCustomBanner
-          ? 'الشعار وصورة الغلاف مرفوعان بهويتك الخاصة ✓'
-          : 'ارفع شعارك الخاص وصورة غلاف حقيقية لمشروعك',
-      desc: 'وجود شعار واضح وصورة بانر احترافية خاصة بعلامتك التجارية يعزز ثقة الزبائن من اللحظة الأولى.',
-      actionLabel: 'رفع الشعار والغلاف',
+          ? 'تم رفع الشعار والغلاف'
+          : 'رفع الشعار وصورة الغلاف',
       targetTab: 'set',
     },
     {
       id: 'bio',
       done: hasRichBio && hasSocialLinks,
-      title:
+      label:
         hasRichBio && hasSocialLinks
-          ? 'النبذة التعريفية وروابط التواصل مكتملة ✓'
-          : 'أكمل نبذة المشروع وروابط إنستقرام والخريطة',
-      desc: 'أضف نبذة جذابة عن جودة عملك ورابط خرائط جوجل وحسابات التواصل الاجتماعي داخل الإعدادات.',
-      actionLabel: 'تحديث النبذة والروابط',
+          ? 'النبذة والروابط مكتملة'
+          : 'إكمال النبذة والروابط',
       targetTab: 'set',
     },
   ];
@@ -104,11 +94,9 @@ export const HomePage: React.FC = () => {
     dynamicTips.push({
       id: 'slug',
       done: hasCustomSlugConfigured,
-      title: hasCustomSlugConfigured
-        ? 'رابطك الفرعي المخصص مفعّل وجاهز للمشاركة ✓'
-        : 'اختر رابطاً مخصصاً باسم مشروعك الآن',
-      desc: 'بما أنك على باقة مدفوعة، يمكنك حجز رابط فرعي خاص باسم مشروعك ليبدو احترافياً في البايو والإعلانات.',
-      actionLabel: 'حجز الرابط المخصص',
+      label: hasCustomSlugConfigured
+        ? 'الرابط الفرعي المخصص مفعّل'
+        : 'حجز الرابط الفرعي المخصص',
       targetTab: 'set',
     });
   }
@@ -238,25 +226,22 @@ export const HomePage: React.FC = () => {
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <div className="mp-home-tip-main">
+                <span className="mp-home-tip-icon" aria-hidden="true">
                   {tip.done ? (
-                    <CheckCircle2 size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+                    <CheckCircle2 size={20} style={{ color: '#10b981' }} />
                   ) : (
-                    <Sparkles size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                    <Sparkles size={20} style={{ color: '#f59e0b' }} />
                   )}
-                  <b className="mp-home-tip-title">{tip.title}</b>
-                </div>
+                </span>
 
-                {!tip.done && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab(tip.targetTab)}
-                    className="btn s mp-home-tip-btn"
-                  >
-                    <span>{tip.actionLabel}</span>
-                    <ArrowUpRight size={14} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(tip.targetTab)}
+                  className={`btn s mp-home-tip-btn ${tip.done ? 'is-done' : ''}`}
+                >
+                  <span>{tip.label}</span>
+                  {!tip.done && <ArrowUpRight size={15} style={{ flexShrink: 0 }} />}
+                </button>
               </motion.div>
             ))}
           </div>
