@@ -549,6 +549,13 @@ export interface RestaurantAddons {
   [key: string]: any;
 }
 
+export interface MediaLibraryItem {
+  id: string;
+  name: string;
+  url: string;
+  createdAt?: number;
+}
+
 export interface Restaurant {
   id: string;
   n: string;
@@ -613,6 +620,7 @@ export interface Restaurant {
   addons?: RestaurantAddons;
   healthNotices?: string[];
   showHealthInfoPopup?: boolean;
+  mediaLibrary?: MediaLibraryItem[];
   tables?: any[];
   h?: RestaurantHours;
   enabledOrderTypes?: {

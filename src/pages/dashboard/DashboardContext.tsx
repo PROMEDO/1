@@ -21,6 +21,7 @@ import {
   AvailabilitySchedule,
   Category,
   DaySchedule,
+  MediaLibraryItem,
   MenuItem,
   MenuLayout,
   Order,
@@ -69,6 +70,7 @@ import {
   resolveRestaurantPlan,
 } from '../../utils/plans';
 import {
+  DEFAULT_MEDIA_ASSETS,
   ensureRestaurantDefaults,
   generateRandomMenuCode,
   getFullSubdomainUrl,
@@ -1251,6 +1253,92 @@ function useDashboardController({
     );
   };
 
+  const mediaLibraryItems: MediaLibraryItem[] = (() => {
+    if (Array.isArray(rest.mediaLibrary)) {
+      return rest.mediaLibrary;
+    }
+    const defaultsSet = new Set<string>([
+      DEFAULT_MEDIA_ASSETS.restaurant.logo,
+      DEFAULT_MEDIA_ASSETS.restaurant.banner,
+      DEFAULT_MEDIA_ASSETS.store.logo,
+      DEFAULT_MEDIA_ASSETS.store.banner,
+    ]);
+    const seen = new Set<string>();
+    const seeded: MediaLibraryItem[] = [];
+    allCategories.forEach((c) => {
+      const url = String(c.img || '').trim();
+      if (url && !defaultsSet.has(url) && !seen.has(url)) {
+        seen.add(url);
+        seeded.push({ id: `media_cat_${c.id}`, name: c.n || 'صورة قسم', url });
+      }
+    });
+    allItems.forEach((it) => {
+      const url = String(it.img || '').trim();
+      if (url && !defaultsSet.has(url) && !seen.has(url)) {
+        seen.add(url);
+        seeded.push({ id: `media_item_${it.id}`, name: it.n || 'صورة صنف', url });
+      }
+    });
+    return seeded;
+  })();
+
+  const appendToMediaLibrary = (entries: MediaLibraryItem[]) => {
+    if (entries.length === 0) return;
+    const latestRest = getItem<Restaurant>(`restaurants/${rid}`) || rest;
+    const baseList = Array.isArray(latestRest.mediaLibrary)
+      ? latestRest.mediaLibrary
+      : mediaLibraryItems;
+    const existingUrls = new Set(baseList.map((m) => m.url));
+    const uniqueNew = entries.filter((entry) => !existingUrls.has(entry.url));
+    if (uniqueNew.length === 0) return;
+    const nextList = [...uniqueNew, ...baseList];
+    putItem<Restaurant>(`restaurants/${rid}`, {
+      ...latestRest,
+      mediaLibrary: nextList,
+    });
+    onRefresh();
+  };
+
+  const uploadImagesToLibrary = async (files: FileList): Promise<MediaLibraryItem[]> => {
+    const added: MediaLibraryItem[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const compressed = await compressImage(file, 'item');
+        added.push({
+          id: 'media_' + uid(),
+          name: file.name || 'image.jpg',
+          url: compressed,
+          createdAt: Date.now(),
+        });
+      } catch {
+        // skip unreadable file
+      }
+    }
+    if (added.length > 0) {
+      appendToMediaLibrary(added);
+      showToast(
+        added.length === 1 ? 'تم رفع الصورة إلى مكتبة الصور ✓' : `تم رفع ${added.length} صور إلى مكتبة الصور ✓`
+      );
+    } else {
+      showToast('تعذر قراءة الصورة، جرب صورة أخرى');
+    }
+    return added;
+  };
+
+  const removeMediaLibraryItem = (mediaId: string) => {
+    const latestRest = getItem<Restaurant>(`restaurants/${rid}`) || rest;
+    const baseList = Array.isArray(latestRest.mediaLibrary)
+      ? latestRest.mediaLibrary
+      : mediaLibraryItems;
+    const nextList = baseList.filter((m) => m.id !== mediaId);
+    putItem<Restaurant>(`restaurants/${rid}`, {
+      ...latestRest,
+      mediaLibrary: nextList,
+    });
+    onRefresh();
+    showToast('تم حذف الصورة من مكتبة الصور');
+  };
+
   const handleDeviceImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onResult: (dataUrl: string) => void,
@@ -1262,6 +1350,14 @@ function useDashboardController({
     if (!file) return;
     try {
       const compressed = await compressImage(file, variant);
+      appendToMediaLibrary([
+        {
+          id: 'media_' + uid(),
+          name: file.name || 'image.jpg',
+          url: compressed,
+          createdAt: Date.now(),
+        },
+      ]);
       onResult(compressed);
       showToast(successLabel);
     } catch {
@@ -2117,6 +2213,9 @@ function useDashboardController({
     handleEditItem,
     handleToggleItemVisibility,
     handleDeviceImageUpload,
+    mediaLibraryItems,
+    uploadImagesToLibrary,
+    removeMediaLibraryItem,
     // Appearance & Settings
     selectedLayout,
     menuThemeMode,

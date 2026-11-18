@@ -12,13 +12,12 @@ import {
   Edit,
   Image as ImageIcon,
   Plus,
-  Save,
   Search,
   Trash2,
-  Upload,
   X,
 } from 'lucide-react';
 import { AvailabilityScheduleEditor } from '../../components/AvailabilityScheduleEditor';
+import { MediaLibraryModal } from '../../components/MediaLibraryModal';
 import { formatScheduleLabel, isWithinAvailabilitySchedule } from '../../utils/availability';
 import {
   SixDotDragHandle,
@@ -36,6 +35,7 @@ export const CategoriesPage: React.FC = () => {
     setSearchCatQuery,
     showCatModal,
     setShowCatModal,
+    editingCatId,
     catNameInput,
     setCatNameInput,
     catImageInput,
@@ -48,12 +48,15 @@ export const CategoriesPage: React.FC = () => {
     handleOpenEditCategory,
     handleDeleteCategory,
     handleReorderCategories,
-    handleDeviceImageUpload,
+    mediaLibraryItems,
+    uploadImagesToLibrary,
+    removeMediaLibraryItem,
   } = useDashboard();
 
   const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
   const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
   const [showCatSearch, setShowCatSearch] = useState<boolean>(() => Boolean(searchCatQuery.trim()));
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const catSearchInputRef = useRef<HTMLInputElement>(null);
 
   const isSearchVisible = showCatSearch || Boolean(searchCatQuery.trim());
@@ -451,34 +454,44 @@ export const CategoriesPage: React.FC = () => {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'min(460px, 92vw)',
+              width: 'min(520px, 92vw)',
               maxHeight: '90vh',
               overflowY: 'auto',
               ...surfaceCardStyle,
-              borderRadius: '22px',
+              borderRadius: '20px',
               padding: '20px 22px 22px',
               zIndex: 99999,
               boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '18px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 900, color: 'var(--ink)' }}>
+                {editingCatId ? 'تعديل القسم' : 'إضافة قسم'}
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowCatModal(false)}
                 aria-label="إغلاق"
                 style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--line)',
-                  borderRadius: '10px',
-                  width: '34px',
-                  height: '34px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '9px',
+                  width: '32px',
+                  height: '32px',
                   display: 'grid',
                   placeItems: 'center',
                   color: 'var(--muted)',
                   cursor: 'pointer',
                 }}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
@@ -487,90 +500,70 @@ export const CategoriesPage: React.FC = () => {
               style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
             >
               <label className="f" style={{ marginBottom: 0 }}>
-                اسم القسم *
+                اسم القسم
                 <input
                   type="text"
                   value={catNameInput}
                   onChange={(e) => setCatNameInput(e.target.value)}
-                  placeholder="مثال: سماش برجر، مشروبات باردة، عطورات..."
+                  placeholder="ادخل اسم القسم"
                   style={{ ...themedInputStyle, borderRadius: '12px', marginTop: '6px' }}
                   required
                 />
               </label>
 
               <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowMediaLibrary(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setShowMediaLibrary(true);
+                  }
+                }}
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '14px',
-                  padding: '12px',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: catImageInput ? '16px' : '26px 16px',
                   borderRadius: '14px',
                   border: '1.5px dashed var(--line)',
                   background: 'var(--bg)',
+                  textAlign: 'center',
+                  cursor: 'pointer',
                 }}
               >
-                <div
-                  style={{
-                    width: '72px',
-                    height: '72px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--line)',
-                    background: 'var(--surface)',
-                    overflow: 'hidden',
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {catImageInput ? (
+                {catImageInput ? (
+                  <>
                     <img
                       src={catImageInput}
                       alt={catNameInput || 'صورة القسم'}
                       referrerPolicy="no-referrer"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      style={{
+                        width: '86px',
+                        height: '86px',
+                        borderRadius: '14px',
+                        objectFit: 'cover',
+                        border: '1px solid var(--line)',
+                        display: 'block',
+                      }}
                     />
-                  ) : (
-                    <ImageIcon size={24} style={{ color: 'var(--muted)' }} />
-                  )}
-                </div>
-
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
-                  <label
-                    className="btn s"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '7px',
-                      height: '40px',
-                      padding: '0 14px',
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                  >
-                    <Upload size={15} />
-                    <span>{catImageInput ? 'تغيير الصورة' : 'رفع صورة من الجهاز'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => void handleDeviceImageUpload(e, setCatImageInput, 'تم رفع صورة القسم بنجاح ✓')}
-                    />
-                  </label>
-
-                  {catImageInput && (
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--brand-ink, #34D399)' }}>
+                      اضغط لتغيير الصورة من مكتبة الصور
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setCatImageInput('')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCatImageInput('');
+                      }}
                       style={{
                         background: 'transparent',
                         border: '1px solid var(--line)',
                         borderRadius: '9px',
-                        height: '32px',
-                        padding: '0 10px',
+                        padding: '4px 12px',
                         fontSize: '12px',
                         fontWeight: 700,
                         color: 'var(--muted)',
@@ -579,8 +572,18 @@ export const CategoriesPage: React.FC = () => {
                     >
                       إزالة الصورة
                     </button>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon size={30} strokeWidth={1.7} style={{ color: 'var(--muted)' }} />
+                    <div style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--ink)' }}>
+                      اضف صورة للقسم (اختياري)
+                    </div>
+                    <div dir="auto" style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                      مقاس الصورة المفضل 180 × 180، نقبل jpg, png, jpeg
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>
@@ -592,29 +595,44 @@ export const CategoriesPage: React.FC = () => {
                 />
               </div>
 
-              <button
-                type="submit"
-                className="btn p"
-                style={{
-                  width: '100%',
-                  height: '44px',
-                  borderRadius: '12px',
-                  fontSize: '14.5px',
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  marginTop: '4px',
-                }}
-              >
-                <Save size={16} />
-                <span>حفظ القسم</span>
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                <button
+                  type="submit"
+                  className="btn p"
+                  style={{
+                    height: '42px',
+                    borderRadius: '11px',
+                    padding: '0 22px',
+                    fontSize: '14px',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {editingCatId ? 'حفظ القسم' : 'إضافة قسم'}
+                </button>
+              </div>
             </form>
           </div>
         </>
       )}
+
+      <MediaLibraryModal
+        isOpen={showMediaLibrary}
+        items={mediaLibraryItems}
+        currentUrl={catImageInput}
+        onSelect={(url) => setCatImageInput(url)}
+        onUploadFiles={uploadImagesToLibrary}
+        onDeleteItem={(mediaId) => {
+          const target = mediaLibraryItems.find((m) => m.id === mediaId);
+          if (target && target.url === catImageInput) {
+            setCatImageInput('');
+          }
+          removeMediaLibraryItem(mediaId);
+        }}
+        onClose={() => setShowMediaLibrary(false)}
+      />
     </div>
   );
 };
