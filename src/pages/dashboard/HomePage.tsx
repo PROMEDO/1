@@ -7,15 +7,17 @@ import React from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowUpRight,
+  Banknote,
   CheckCircle2,
   Lightbulb,
-  Megaphone,
-  MessageCircle,
-  QrCode,
-  Share2,
+  ShoppingBag,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 import { useTranslation } from '../../utils/i18n';
+import { formatNumber } from '../../utils/storage';
 import { DEFAULT_MEDIA_ASSETS } from '../../utils/businessDefaults';
 import { Ml7Text } from '../../components/Ml7Text';
 import { useDashboard } from './DashboardContext';
@@ -29,6 +31,8 @@ export const HomePage: React.FC = () => {
     terms,
     allCategories,
     allItems,
+    allOrders,
+    currency,
     setActiveTab,
     activeRid,
     mainRid,
@@ -105,41 +109,69 @@ export const HomePage: React.FC = () => {
   const readinessPercent = Math.round((completedTipsCount / dynamicTips.length) * 100);
   const allTipsCompleted = completedTipsCount >= dynamicTips.length;
 
-  const guideTitleText = t.tipsShareTitle || 'كيف تنشر رابطك وتجلب طلبات أكثر؟';
+  const nowMs = Date.now();
+  const windowMs = 30 * 24 * 60 * 60 * 1000;
+  const validOrders = allOrders.filter(
+    (o) => o.st !== 'cancelled' && o.status !== 'cancelled'
+  );
+  const netSalesAmount = validOrders.reduce(
+    (sum, o) => sum + (Number(o.tot ?? o.total ?? 0) || 0),
+    0
+  );
 
-  const guideCards = [
+  const currentOrders = validOrders.filter((o) => {
+    const raw = o.at ?? o.createdAt;
+    const ms = typeof raw === 'number' ? raw : raw ? new Date(raw).getTime() : 0;
+    return ms > 0 && nowMs - ms <= windowMs;
+  });
+  const prevOrders = validOrders.filter((o) => {
+    const raw = o.at ?? o.createdAt;
+    const ms = typeof raw === 'number' ? raw : raw ? new Date(raw).getTime() : 0;
+    return ms > 0 && nowMs - ms > windowMs && nowMs - ms <= windowMs * 2;
+  });
+
+  const currentSales = currentOrders.reduce(
+    (sum, o) => sum + (Number(o.tot ?? o.total ?? 0) || 0),
+    0
+  );
+  const prevSales = prevOrders.reduce(
+    (sum, o) => sum + (Number(o.tot ?? o.total ?? 0) || 0),
+    0
+  );
+
+  const calcChangePct = (curr: number, prev: number) => {
+    if (prev > 0) return ((curr - prev) / prev) * 100;
+    if (curr > 0) return 100;
+    return 0;
+  };
+
+  const visitsCount = Math.max(0, Number(rest.v || 0));
+  const prevVisitsCount = Math.max(0, Number((rest as { vPrev?: number }).vPrev || 0));
+  const visitsPct = calcChangePct(visitsCount, prevVisitsCount);
+  const ordersPct = calcChangePct(currentOrders.length, prevOrders.length);
+  const salesPct = calcChangePct(currentSales, prevSales);
+
+  const homeStats = [
     {
-      id: 'social',
-      Icon: Share2,
-      title: '1. السوشيال ميديا والإعلانات',
-      body: (
-        <>
-          ثبّت رابط {terms.menuTitle} في <b>البايو</b> بإنستقرام وتيك توك مع عبارة واضحة مثل:{' '}
-          <i>«للطلب المباشر اضغط الرابط 👇»</i>. وفي الستوري والإعلانات المموّلة اربط زر الإجراء بالمنيو مباشرة حتى يطلب الزبون خلال ثوانٍ بدل انتظار الرد في الخاص.
-        </>
-      ),
+      id: 'visits',
+      label: 'عدد زيارات القائمة',
+      value: formatNumber(visitsCount),
+      pct: visitsPct,
+      Icon: Users,
     },
     {
-      id: 'qr',
-      Icon: QrCode,
-      title: '2. كود QR داخل المحل والتغليف',
-      body: (
-        <>
-          اطبع كود الـ <b>QR</b> وضعه على الطاولات والكاشير، وأرفق ملصقاً صغيراً على أكياس أو علب التوصيل بعبارة:
-          <i> «امسح الكود واطلب مرة ثانية أسرع»</i> لتضمن عودة الزبون لطلبك مباشرة من دون تطبيقات وسيطة.
-        </>
-      ),
+      id: 'orders',
+      label: 'صافي الطلبات',
+      value: formatNumber(validOrders.length),
+      pct: ordersPct,
+      Icon: ShoppingBag,
     },
     {
-      id: 'whatsapp',
-      Icon: MessageCircle,
-      title: '3. الرد التلقائي في واتساب',
-      body: (
-        <>
-          أضف رابط المنيو داخل رسالة الترحيب أو الرد السريع في <b>WhatsApp Business</b> مثل:
-          <i> «أهلاً بك! تصفح قائمتنا واختر طلبك مباشرة من هنا»</i> ليصل الزبون لقائمتك ويرسل طلبه كاملاً مع العنوان والسعر.
-        </>
-      ),
+      id: 'sales',
+      label: 'صافي المبيعات',
+      value: `${formatNumber(netSalesAmount)} ${currency}`,
+      pct: salesPct,
+      Icon: Banknote,
     },
   ];
 
@@ -177,97 +209,66 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Checklist Section: transparent & borderless, shown when steps are still incomplete */}
-      {!allTipsCompleted && (
-        <section className="mp-home-section">
-          <div className="mp-home-section-head">
-            <span
-              className="mp-home-section-badge"
-              style={{
-                background: 'rgba(245, 158, 11, 0.14)',
-                color: '#f59e0b',
-              }}
-            >
-              <Lightbulb size={15} />
-              <span>نسبة الاكتمال: {readinessPercent}%</span>
-            </span>
+      {/* 3 Organized Transparent KPI Rows */}
+      <section className="mp-home-stats-section" aria-label="ملخص الأداء">
+        <div className="mp-home-stats-list">
+          {homeStats.map((stat, idx) => {
+            const IconComp = stat.Icon;
+            const isDown = stat.pct < 0;
+            const TrendIcon = isDown ? TrendingDown : TrendingUp;
+            const trendColor = isDown ? '#ef4444' : '#10b981';
+            const formattedPct = `${Math.abs(stat.pct).toFixed(2)}%`;
 
-            <h2 className="mp-home-section-title">
-              <Ml7Text
-                text="خطوات استكمال جاهزية المنيو 💡"
-                mode="mount"
-                delay={0.08}
-                stagger={0.12}
-                isRtl={isRtl}
-              />
-            </h2>
-
-            <motion.p
-              className="mp-home-section-sub"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {t.tipsSectionTitle || 'أكمل هذه الخطوات البسيطة ليظهر متجرك بأفضل صورة أمام الزبائن.'}
-            </motion.p>
-          </div>
-
-          <div className="mp-home-tips-list">
-            {dynamicTips.map((tip, idx) => (
+            return (
               <motion.div
-                key={tip.id}
-                className="mp-home-tip-row"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
+                key={stat.id}
+                className="mp-home-stat-row"
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: 0.85,
-                  delay: prefersReducedMotion ? 0 : Math.min(idx * 0.08, 0.4),
+                  delay: prefersReducedMotion ? 0 : 0.05 + idx * 0.07,
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                <span className="mp-home-tip-icon" aria-hidden="true">
-                  {tip.done ? (
-                    <CheckCircle2 size={20} style={{ color: '#10b981' }} />
-                  ) : (
-                    <Sparkles size={20} style={{ color: '#f59e0b' }} />
-                  )}
-                </span>
+                <div className="mp-home-stat-main">
+                  <span className="mp-home-stat-icon" aria-hidden="true">
+                    <IconComp size={20} strokeWidth={1.85} />
+                  </span>
+                  <div className="mp-home-stat-text">
+                    <div className="mp-home-stat-value tabular-nums">{stat.value}</div>
+                    <div className="mp-home-stat-label">{stat.label}</div>
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(tip.targetTab)}
-                  className={`btn s mp-home-tip-btn ${tip.done ? 'is-done' : ''}`}
-                >
-                  <span>{tip.label}</span>
-                  {!tip.done && <ArrowUpRight size={15} style={{ flexShrink: 0 }} />}
-                </button>
+                <div className="mp-home-stat-trend tabular-nums" style={{ color: trendColor }}>
+                  <span>{formattedPct}</span>
+                  <TrendIcon size={15} strokeWidth={2.2} />
+                </div>
               </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
+            );
+          })}
+        </div>
+      </section>
 
-      {/* Clear & Practical Growth & Publishing Guide */}
-      <section
-        className={`mp-home-section ${!allTipsCompleted ? 'mp-home-section--guide' : ''}`}
-      >
+      {/* Checklist Section: transparent & borderless */}
+      <section className="mp-home-section">
         <div className="mp-home-section-head">
           <span
             className="mp-home-section-badge"
             style={{
-              background: 'var(--soft)',
-              color: 'var(--brand-ink, #34D399)',
+              background: allTipsCompleted ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)',
+              color: allTipsCompleted ? '#10b981' : '#f59e0b',
             }}
           >
-            <Megaphone size={15} />
-            <span>نصائح لزيادة الطلبات</span>
+            {allTipsCompleted ? <CheckCircle2 size={15} /> : <Lightbulb size={15} />}
+            <span>نسبة الاكتمال: {readinessPercent}%</span>
           </span>
 
           <h2 className="mp-home-section-title">
             <Ml7Text
-              text={guideTitleText}
-              mode="inView"
+              text="خطوات استكمال جاهزية المنيو 💡"
+              mode="mount"
               delay={0.08}
               stagger={0.12}
               isRtl={isRtl}
@@ -277,38 +278,47 @@ export const HomePage: React.FC = () => {
           <motion.p
             className="mp-home-section-sub"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{ duration: 0.9, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            خطوات عملية بسيطة تحول متابعيك وزبائن المحل إلى طلبات مباشرة بدون عمولات.
+            {allTipsCompleted
+              ? 'جميع خطوات جاهزية المنيو مكتملة وجاهزة لاستقبال طلبات الزبائن.'
+              : t.tipsSectionTitle || 'أكمل هذه الخطوات البسيطة ليظهر متجرك بأفضل صورة أمام الزبائن.'}
           </motion.p>
         </div>
 
-        <div className="mp-home-guide-grid">
-          {guideCards.map((card, idx) => {
-            const IconComp = card.Icon;
-            return (
-              <motion.div
-                key={card.id}
-                className="mp-home-guide-card"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{
-                  duration: 0.96,
-                  delay: prefersReducedMotion ? 0 : Math.min(idx * 0.11, 0.44),
-                  ease: [0.16, 1, 0.3, 1],
-                }}
+        <div className="mp-home-tips-list">
+          {dynamicTips.map((tip, idx) => (
+            <motion.div
+              key={tip.id}
+              className="mp-home-tip-row"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{
+                duration: 0.85,
+                delay: prefersReducedMotion ? 0 : Math.min(idx * 0.08, 0.4),
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              <span className="mp-home-tip-icon" aria-hidden="true">
+                {tip.done ? (
+                  <CheckCircle2 size={20} style={{ color: '#10b981' }} />
+                ) : (
+                  <Sparkles size={20} style={{ color: '#f59e0b' }} />
+                )}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(tip.targetTab)}
+                className={`btn s mp-home-tip-btn ${tip.done ? 'is-done' : ''}`}
               >
-                <div className="mp-home-guide-title">
-                  <IconComp size={17} style={{ flexShrink: 0 }} />
-                  <span>{card.title}</span>
-                </div>
-                <p className="mp-home-guide-body">{card.body}</p>
-              </motion.div>
-            );
-          })}
+                <span>{tip.label}</span>
+                {!tip.done && <ArrowUpRight size={15} style={{ flexShrink: 0 }} />}
+              </button>
+            </motion.div>
+          ))}
         </div>
       </section>
     </div>
