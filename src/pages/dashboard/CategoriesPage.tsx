@@ -33,7 +33,6 @@ import {
 export const CategoriesPage: React.FC = () => {
   const {
     resolvedPlan,
-    customTabLabel,
     allCategories,
     filteredCategories,
     searchCatQuery,
@@ -116,69 +115,74 @@ export const CategoriesPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'var(--ink)', margin: 0 }}>
-          {customTabLabel('cats', 'الأقسام والتصنيفات')}
-        </h1>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '18px',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleCategorySearch}
+          className="btn s"
+          aria-expanded={isSearchVisible}
+          style={{
+            height: '42px',
+            minHeight: '42px',
+            borderRadius: '12px',
+            padding: '0 16px',
+            fontSize: '13.5px',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            borderColor: isSearchVisible ? 'var(--brand)' : undefined,
+            color: isSearchVisible ? 'var(--brand-ink, #34D399)' : undefined,
+          }}
+        >
+          <Compass size={17} />
+          <span>ابحث</span>
+        </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={openNewCategoryModal}
+        <button
+          type="button"
+          onClick={openNewCategoryModal}
+          className={atCatLimit ? 'btn s' : 'btn p'}
+          style={{
+            height: '42px',
+            minHeight: '42px',
+            borderRadius: '12px',
+            padding: '0 16px',
+            fontSize: '13.5px',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          <Plus size={17} />
+          <span>{atCatLimit ? 'الحد مكتمل 🔒' : 'إضافة قسم'}</span>
+          <span
+            className="tabular-nums"
             style={{
-              background: atCatLimit ? 'rgba(148, 163, 184, 0.25)' : 'var(--brand)',
-              color: atCatLimit ? 'var(--muted)' : 'var(--on-brand)',
-              border: 0,
-              borderRadius: '10px',
-              padding: '9px 15px',
-              minHeight: '40px',
-              fontSize: '14px',
+              fontSize: '12px',
               fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              cursor: 'pointer',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              background: atCatLimit ? 'rgba(148, 163, 184, 0.2)' : 'rgba(0, 0, 0, 0.16)',
+              lineHeight: 1.35,
             }}
           >
-            <Plus size={17} />
-            <span>{atCatLimit ? 'الحد مكتمل 🔒' : 'إضافة قسم'}</span>
-            <span
-              className="tabular-nums"
-              style={{
-                fontSize: '12px',
-                fontWeight: 800,
-                padding: '2px 7px',
-                borderRadius: '7px',
-                background: atCatLimit ? 'rgba(148, 163, 184, 0.2)' : 'rgba(0, 0, 0, 0.16)',
-                lineHeight: 1.3,
-              }}
-            >
-              {catLimitText}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleCategorySearch}
-            className="btn s"
-            aria-expanded={isSearchVisible}
-            style={{
-              minHeight: '40px',
-              borderRadius: '10px',
-              padding: '9px 15px',
-              fontSize: '14px',
-              fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              borderColor: isSearchVisible ? 'var(--brand)' : undefined,
-              color: isSearchVisible ? 'var(--brand-ink, #34D399)' : undefined,
-            }}
-          >
-            <Compass size={17} />
-            <span>ابحث</span>
-          </button>
-        </div>
+            {catLimitText}
+          </span>
+        </button>
       </div>
 
       {isSearchVisible && (
