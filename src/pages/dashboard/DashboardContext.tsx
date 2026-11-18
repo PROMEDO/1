@@ -838,7 +838,7 @@ function useDashboardController({
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catNameInput, setCatNameInput] = useState('');
   const [catSubtitleInput, setCatSubtitleInput] = useState('');
-  const [catEmojiInput, setCatEmojiInput] = useState('🍔');
+  const [catEmojiInput, setCatEmojiInput] = useState('');
   const [catImageInput, setCatImageInput] = useState('');
   const [catPublishedInput, setCatPublishedInput] = useState(true);
   const [catScheduleInput, setCatScheduleInput] = useState<AvailabilitySchedule>(() =>
@@ -1312,7 +1312,7 @@ function useDashboardController({
     setEditingCatId(null);
     setCatNameInput('');
     setCatSubtitleInput('');
-    setCatEmojiInput('🍔');
+    setCatEmojiInput('');
     setCatImageInput('');
     setCatPublishedInput(true);
     setCatScheduleInput(normalizeAvailabilitySchedule(DEFAULT_AVAILABILITY_SCHEDULE));
@@ -1347,7 +1347,7 @@ function useDashboardController({
           rid,
           n: cleanName,
           subtitle: catSubtitleInput.trim() || undefined,
-          emoji: catEmojiInput || '🍔',
+          emoji: catEmojiInput.trim() || undefined,
           img: catImageInput.trim() || undefined,
           date: existing?.date || new Date().toLocaleDateString('ar-IQ'),
           published: existing ? existing.published !== false : catPublishedInput,
@@ -1359,7 +1359,7 @@ function useDashboardController({
         setEditingCatId(null);
         setCatNameInput('');
         setCatSubtitleInput('');
-        setCatEmojiInput('🍔');
+        setCatEmojiInput('');
         setCatImageInput('');
         setCatScheduleInput(normalizeAvailabilitySchedule(DEFAULT_AVAILABILITY_SCHEDULE));
         onRefresh();
@@ -1372,7 +1372,7 @@ function useDashboardController({
     setEditingCatId(cat.id);
     setCatNameInput(cat.n);
     setCatSubtitleInput(cat.subtitle || '');
-    setCatEmojiInput(cat.emoji || '🍔');
+    setCatEmojiInput(cat.emoji || '');
     setCatImageInput(cat.img || '');
     setCatPublishedInput(cat.published !== false);
     setCatScheduleInput(normalizeAvailabilitySchedule(cat.availabilitySchedule));

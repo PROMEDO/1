@@ -18,13 +18,10 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { ImageSuggestionPicker } from '../../components/ImageSuggestionPicker';
 import { AvailabilityScheduleEditor } from '../../components/AvailabilityScheduleEditor';
 import { formatScheduleLabel, isWithinAvailabilitySchedule } from '../../utils/availability';
 import {
-  ANIMATED_EMOJIS,
   SixDotDragHandle,
-  modalSectionStyle,
   surfaceCardStyle,
   themedInputStyle,
   useDashboard,
@@ -39,13 +36,8 @@ export const CategoriesPage: React.FC = () => {
     setSearchCatQuery,
     showCatModal,
     setShowCatModal,
-    editingCatId,
     catNameInput,
     setCatNameInput,
-    catSubtitleInput,
-    setCatSubtitleInput,
-    catEmojiInput,
-    setCatEmojiInput,
     catImageInput,
     setCatImageInput,
     catScheduleInput,
@@ -459,190 +451,139 @@ export const CategoriesPage: React.FC = () => {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'min(580px, 94vw)',
+              width: 'min(460px, 92vw)',
               maxHeight: '90vh',
               overflowY: 'auto',
               ...surfaceCardStyle,
               borderRadius: '22px',
-              padding: '22px',
+              padding: '20px 22px 22px',
               zIndex: 99999,
               boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--line)' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 900, color: 'var(--ink)', margin: 0 }}>
-                {editingCatId ? 'تعديل القسم والتصنيف' : 'إضافة قسم جديد للمنيو'}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
               <button
                 type="button"
                 onClick={() => setShowCatModal(false)}
-                style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '9px', width: '34px', height: '34px', display: 'grid', placeItems: 'center', color: 'var(--muted)', cursor: 'pointer' }}
+                aria-label="إغلاق"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '10px',
+                  width: '34px',
+                  height: '34px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCategory}>
-              <div style={modalSectionStyle}>
-                <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--brand-ink, #34D399)', marginBottom: '10px' }}>
-                  بيانات القسم الأساسية
+            <form
+              onSubmit={handleSaveCategory}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              <label className="f" style={{ marginBottom: 0 }}>
+                اسم القسم *
+                <input
+                  type="text"
+                  value={catNameInput}
+                  onChange={(e) => setCatNameInput(e.target.value)}
+                  placeholder="مثال: سماش برجر، مشروبات باردة، عطورات..."
+                  style={{ ...themedInputStyle, borderRadius: '12px', marginTop: '6px' }}
+                  required
+                />
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '12px',
+                  borderRadius: '14px',
+                  border: '1.5px dashed var(--line)',
+                  background: 'var(--bg)',
+                }}
+              >
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--line)',
+                    background: 'var(--surface)',
+                    overflow: 'hidden',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {catImageInput ? (
+                    <img
+                      src={catImageInput}
+                      alt={catNameInput || 'صورة القسم'}
+                      referrerPolicy="no-referrer"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <ImageIcon size={24} style={{ color: 'var(--muted)' }} />
+                  )}
                 </div>
-                <label className="f">
-                  اسم القسم *
-                  <input
-                    type="text"
-                    value={catNameInput}
-                    onChange={(e) => setCatNameInput(e.target.value)}
-                    placeholder="مثال: سماش برجر، مشروبات باردة، عطورات..."
-                    style={themedInputStyle}
-                    required
-                  />
-                </label>
 
-                <label className="f" style={{ marginBottom: 0 }}>
-                  وصف فرعي (اختياري)
-                  <input
-                    type="text"
-                    value={catSubtitleInput}
-                    onChange={(e) => setCatSubtitleInput(e.target.value)}
-                    placeholder="مثال: وجبات طازجة تحضر عند الطلب"
-                    style={themedInputStyle}
-                  />
-                </label>
-              </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                  <label
+                    className="btn s"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '7px',
+                      height: '40px',
+                      padding: '0 14px',
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <Upload size={15} />
+                    <span>{catImageInput ? 'تغيير الصورة' : 'رفع صورة من الجهاز'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e) => void handleDeviceImageUpload(e, setCatImageInput, 'تم رفع صورة القسم بنجاح ✓')}
+                    />
+                  </label>
 
-              <div style={modalSectionStyle}>
-                <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--brand-ink, #34D399)', marginBottom: '10px' }}>
-                  صورة القسم (من الجهاز أو اقتراحات قوقل)
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', alignItems: 'start' }}>
-                  <div>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                      <div
-                        style={{
-                          width: '68px',
-                          height: '68px',
-                          borderRadius: '12px',
-                          border: '1.5px dashed var(--line)',
-                          background: 'var(--surface)',
-                          overflow: 'hidden',
-                          display: 'grid',
-                          placeItems: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {catImageInput ? (
-                          <img
-                            src={catImageInput}
-                            alt={catNameInput || 'صورة القسم'}
-                            referrerPolicy="no-referrer"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          />
-                        ) : (
-                          <ImageIcon size={24} style={{ color: 'var(--muted)' }} />
-                        )}
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            background: 'var(--brand)',
-                            color: 'var(--on-brand)',
-                            fontSize: '12.5px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Upload size={14} />
-                          <span>رفع صورة من الجهاز</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            onChange={(e) => void handleDeviceImageUpload(e, setCatImageInput, 'تم رفع صورة القسم بنجاح ✓')}
-                          />
-                        </label>
-                        {catImageInput && (
-                          <button
-                            type="button"
-                            onClick={() => setCatImageInput('')}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid var(--line)',
-                              borderRadius: '8px',
-                              padding: '4px 8px',
-                              fontSize: '11.5px',
-                              color: 'var(--muted)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            إزالة الصورة
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <label className="f" style={{ marginBottom: 0 }}>
-                      أو رابط الصورة مباشرة
-                      <input
-                        type="text"
-                        dir="ltr"
-                        value={catImageInput}
-                        onChange={(e) => setCatImageInput(e.target.value)}
-                        placeholder="https://..."
-                        style={{ ...themedInputStyle, textAlign: 'left', fontSize: '12.5px' }}
-                      />
-                    </label>
-                  </div>
-
-                  <ImageSuggestionPicker
-                    productName={catNameInput}
-                    currentImage={catImageInput}
-                    onSelect={setCatImageInput}
-                    titleLabel="اقتراحات صور حسب اسم القسم"
-                  />
-                </div>
-              </div>
-
-              <div style={modalSectionStyle}>
-                <label className="f" style={{ marginBottom: '8px' }}>
-                  أيقونة القسم (Emoji)
-                  <input
-                    type="text"
-                    value={catEmojiInput}
-                    onChange={(e) => setCatEmojiInput(e.target.value)}
-                    placeholder="مثال: 🍔"
-                    style={themedInputStyle}
-                  />
-                </label>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {ANIMATED_EMOJIS.slice(0, 10).map((em) => (
+                  {catImageInput && (
                     <button
-                      key={em}
                       type="button"
-                      onClick={() => setCatEmojiInput(em)}
+                      onClick={() => setCatImageInput('')}
                       style={{
-                        background: catEmojiInput === em ? 'var(--brand)' : 'var(--surface)',
-                        color: catEmojiInput === em ? 'var(--on-brand)' : 'var(--ink)',
+                        background: 'transparent',
                         border: '1px solid var(--line)',
-                        borderRadius: '8px',
-                        padding: '5px 9px',
-                        fontSize: '16px',
+                        borderRadius: '9px',
+                        height: '32px',
+                        padding: '0 10px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: 'var(--muted)',
                         cursor: 'pointer',
                       }}
                     >
-                      {em}
+                      إزالة الصورة
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              <div style={modalSectionStyle}>
+              <div>
                 <AvailabilityScheduleEditor
                   value={catScheduleInput}
                   onChange={setCatScheduleInput}
@@ -651,23 +592,25 @@ export const CategoriesPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '14px' }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowCatModal(false)}
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="btn p"
-                  style={{ fontWeight: 800, padding: '10px 22px' }}
-                >
-                  <Save size={15} />
-                  <span>حفظ القسم</span>
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="btn p"
+                style={{
+                  width: '100%',
+                  height: '44px',
+                  borderRadius: '12px',
+                  fontSize: '14.5px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  marginTop: '4px',
+                }}
+              >
+                <Save size={16} />
+                <span>حفظ القسم</span>
+              </button>
             </form>
           </div>
         </>
