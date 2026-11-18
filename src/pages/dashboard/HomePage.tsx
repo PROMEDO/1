@@ -47,12 +47,24 @@ export const HomePage: React.FC = () => {
     rest.social?.instagram || rest.social?.tiktok || rest.social?.facebook || rest.mapUrl
   );
   const hasCustomSlugConfigured = Boolean(rest.slug || rest.subdomain);
+  const itemsWithPhotoCount = allItems.filter((item) => Boolean(item.img && item.img.trim())).length;
+  const hasItemsPhotos = allItems.length >= 3 && itemsWithPhotoCount >= Math.min(allItems.length, 3);
+  const hasWhatsappConfigured = Boolean(
+    (rest.ph && rest.ph.trim().length >= 8) ||
+      (rest.social?.whatsapp && rest.social.whatsapp.trim().length >= 8)
+  );
+  const hasWorkHoursConfigured = Boolean(rest.weeklyHours && Object.keys(rest.weeklyHours).length > 0);
+  const hasDeliveryZonesConfigured = Boolean(
+    Array.isArray(rest.deliveryZones) && rest.deliveryZones.length > 0
+  );
+  const hasTelegramConnected = Boolean(rest.telegramChatId && String(rest.telegramChatId).trim());
+  const hasMapLocation = Boolean(rest.mapUrl && rest.mapUrl.trim());
 
   interface MenuTip {
     id: string;
     done: boolean;
     label: string;
-    targetTab: 'cats' | 'menu' | 'set' | 'qr' | 'appearance';
+    targetTab: 'cats' | 'menu' | 'set' | 'qr' | 'appearance' | 'telegram';
   }
 
   const dynamicTips: MenuTip[] = [
@@ -75,6 +87,22 @@ export const HomePage: React.FC = () => {
       targetTab: 'menu',
     },
     {
+      id: 'itemImages',
+      done: hasItemsPhotos,
+      label: hasItemsPhotos
+        ? 'تمت إضافة صور واضحة للأصناف'
+        : `أضف صوراً للأصناف (${Math.min(itemsWithPhotoCount, 3)}/3)`,
+      targetTab: 'menu',
+    },
+    {
+      id: 'whatsapp',
+      done: hasWhatsappConfigured,
+      label: hasWhatsappConfigured
+        ? 'رقم الواتساب لاستقبال الطلبات مفعّل'
+        : 'إضافة رقم واتساب لاستقبال الطلبات',
+      targetTab: 'set',
+    },
+    {
       id: 'media',
       done: hasCustomLogo && hasCustomBanner,
       label:
@@ -84,12 +112,48 @@ export const HomePage: React.FC = () => {
       targetTab: 'set',
     },
     {
+      id: 'hours',
+      done: hasWorkHoursConfigured,
+      label: hasWorkHoursConfigured
+        ? 'أوقات وساعات الدوام مضبوطة'
+        : 'ضبط أوقات وساعات الدوام',
+      targetTab: 'set',
+    },
+    ...(rest.enabledOrderTypes?.delivery !== false
+      ? [
+          {
+            id: 'deliveryZones',
+            done: hasDeliveryZonesConfigured,
+            label: hasDeliveryZonesConfigured
+              ? 'مناطق وأسعار التوصيل محددة'
+              : 'تحديد مناطق وأسعار التوصيل',
+            targetTab: 'set' as const,
+          },
+        ]
+      : []),
+    {
+      id: 'telegram',
+      done: hasTelegramConnected,
+      label: hasTelegramConnected
+        ? 'إشعارات بوت تيليجرام مفعّلة'
+        : 'ربط بوت تيليجرام لتنبيهات الطلبات',
+      targetTab: 'telegram',
+    },
+    {
+      id: 'mapLocation',
+      done: hasMapLocation,
+      label: hasMapLocation
+        ? 'تم تحديد الموقع على الخريطة'
+        : 'إضافة رابط الموقع على الخريطة',
+      targetTab: 'set',
+    },
+    {
       id: 'bio',
       done: hasRichBio && hasSocialLinks,
       label:
         hasRichBio && hasSocialLinks
           ? 'النبذة والروابط مكتملة'
-          : 'إكمال النبذة والروابط',
+          : 'إكمال النبذة وروابط التواصل',
       targetTab: 'set',
     },
   ];
@@ -104,6 +168,11 @@ export const HomePage: React.FC = () => {
       targetTab: 'set',
     });
   }
+
+  const orderedTips: MenuTip[] = [
+    ...dynamicTips.filter((tip) => !tip.done),
+    ...dynamicTips.filter((tip) => tip.done),
+  ];
 
   const completedTipsCount = dynamicTips.filter((x) => x.done).length;
   const readinessPercent = Math.round((completedTipsCount / dynamicTips.length) * 100);
@@ -288,7 +357,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="mp-home-tips-list">
-          {dynamicTips.map((tip, idx) => (
+          {orderedTips.map((tip, idx) => (
             <motion.div
               key={tip.id}
               className="mp-home-tip-row"

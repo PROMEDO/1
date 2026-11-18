@@ -1413,6 +1413,41 @@ function useDashboardController({
     showToast(nextOn ? `تم تشغيل "${item.n}" وظهوره في المنيو` : `تم إطفاء "${item.n}" وإخفاؤه من المنيو`);
   };
 
+  const handleReorderItems = (nextOrderedSubsetIds: string[]) => {
+    if (nextOrderedSubsetIds.length === 0) return;
+    const byId = new Map<string, MenuItem>(allItems.map((it) => [it.id, it]));
+    const subsetSet = new Set(nextOrderedSubsetIds);
+    const reorderedSubset = nextOrderedSubsetIds
+      .map((id) => byId.get(id))
+      .filter((it): it is MenuItem => Boolean(it));
+
+    let subPtr = 0;
+    const finalItems = allItems.map((it) =>
+      subsetSet.has(it.id) && subPtr < reorderedSubset.length ? reorderedSubset[subPtr++] : it
+    );
+
+    finalItems.forEach((it, index) => {
+      if ((it.o ?? -1) !== index) {
+        putItem<MenuItem>(`items/${it.id}`, { ...it, o: index });
+      }
+    });
+    onRefresh();
+    showToast('تم حفظ ترتيب العناصر الجديد ✓');
+  };
+
+  const handleSaveItemSchedule = (item: MenuItem, schedule: AvailabilitySchedule) => {
+    putItem<MenuItem>(`items/${item.id}`, {
+      ...item,
+      availabilitySchedule: sanitizeAvailabilityScheduleForSave(schedule),
+    });
+    onRefresh();
+    showToast(
+      schedule.enabled
+        ? `تم حفظ أوقات توفر "${item.n}" ✓`
+        : `تم ضبط "${item.n}" كمتوفر دائماً ✓`
+    );
+  };
+
   const openNewCategoryModal = () => {
     if (resolvedPlan.maxCats !== -1 && allCategories.length >= resolvedPlan.maxCats) {
       showToast(`وصلت للحد الأقصى للأقسام في باقتك (${resolvedPlan.maxCats} أقسام). يمكنك الترقية لباقة أعلى.`);
@@ -2226,6 +2261,8 @@ function useDashboardController({
     handleBatchAddItems,
     handleEditItem,
     handleToggleItemVisibility,
+    handleReorderItems,
+    handleSaveItemSchedule,
     handleDeviceImageUpload,
     mediaLibraryItems,
     uploadImagesToLibrary,

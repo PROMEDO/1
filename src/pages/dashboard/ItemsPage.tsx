@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
@@ -11,19 +11,20 @@ import {
   ChevronRight,
   Clock,
   Edit,
-  ImagePlus,
-  Pin,
+  Image as ImageIcon,
   Plus,
-  Save,
-  Search,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
+import { AvailabilitySchedule, MenuItem } from '../../types';
 import { formatNumber } from '../../utils/storage';
-import { ImageSuggestionPicker } from '../../components/ImageSuggestionPicker';
 import { AvailabilityScheduleEditor } from '../../components/AvailabilityScheduleEditor';
-import { formatScheduleLabel, isWithinAvailabilitySchedule } from '../../utils/availability';
+import { MediaLibraryModal } from '../../components/MediaLibraryModal';
+import {
+  DEFAULT_AVAILABILITY_SCHEDULE,
+  normalizeAvailabilitySchedule,
+} from '../../utils/availability';
 import {
   SixDotDragHandle,
   surfaceCardStyle,
@@ -104,20 +105,188 @@ export const ItemsPage: React.FC = () => {
     handleBatchAddItems,
     handleEditItem,
     handleToggleItemVisibility,
-    handleDeviceImageUpload,
+    handleReorderItems,
+    handleSaveItemSchedule,
+    mediaLibraryItems,
+    uploadImagesToLibrary,
+    removeMediaLibraryItem,
   } = useDashboard();
 
   const [quickPriceItemId, setQuickPriceItemId] = useState<string | null>(null);
   const [quickPriceDraft, setQuickPriceDraft] = useState<string>('');
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [scheduleModalItem, setScheduleModalItem] = useState<MenuItem | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<AvailabilitySchedule>(() =>
+    normalizeAvailabilitySchedule(DEFAULT_AVAILABILITY_SCHEDULE)
+  );
+
+  // Smooth touch + mouse pointer-drag reordering via the 6-dot handle
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState<number>(0);
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dragSessionRef = useRef<{
+    itemId: string;
+    startClientY: number;
+    initialCenterY: number;
+    slotCenters: number[];
+    draftOrder: string[];
+    originalOrder: string[];
+  } | null>(null);
+
+  const canReorder = !searchItemQuery.trim() && filteredItems.length > 1;
+
+  const displayItems = dragOrder
+    ? dragOrder
+        .map((id) => filteredItems.find((it) => it.id === id))
+        .filter((it): it is MenuItem => Boolean(it))
+    : filteredItems;
+
+  useEffect(() => {
+    const handlePointerMove = (ev: PointerEvent) => {
+      const st = dragSessionRef.current;
+      if (!st) return;
+      ev.preventDefault();
+
+      const currentCenterY = st.initialCenterY + (ev.clientY - st.startClientY);
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      st.slotCenters.forEach((sc, idx) => {
+        const dist = Math.abs(currentCenterY - sc);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = idx;
+        }
+      });
+
+      const currentIdx = st.draftOrder.indexOf(st.itemId);
+      if (currentIdx !== -1 && bestIdx !== currentIdx) {
+        const nextOrder = [...st.draftOrder];
+        const [moved] = nextOrder.splice(currentIdx, 1);
+        nextOrder.splice(bestIdx, 0, moved);
+        st.draftOrder = nextOrder;
+        setDragOrder([...nextOrder]);
+      }
+
+      setDragOffsetY(currentCenterY - st.slotCenters[bestIdx]);
+    };
+
+    const finishDrag = () => {
+      const st = dragSessionRef.current;
+      if (!st) return;
+      const changed = st.draftOrder.some((id, idx) => id !== st.originalOrder[idx]);
+      const finalOrder = [...st.draftOrder];
+      dragSessionRef.current = null;
+      setDraggingItemId(null);
+      setDragOffsetY(0);
+      setDragOrder(null);
+      if (changed) {
+        handleReorderItems(finalOrder);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', finishDrag);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', finishDrag);
+      window.removeEventListener('pointercancel', finishDrag);
+    };
+  }, [handleReorderItems]);
+
+  const startHandleDrag = (e: React.PointerEvent<HTMLButtonElement>, itemId: string) => {
+    if (!canReorder) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore if browser declines pointer capture
+    }
+
+    const originalOrder = filteredItems.map((it) => it.id);
+    const slotCenters = originalOrder.map((id) => {
+      const el = rowRefs.current.get(id);
+      if (!el) return 0;
+      const rect = el.getBoundingClientRect();
+      return rect.top + rect.height / 2;
+    });
+    const initialIdx = originalOrder.indexOf(itemId);
+    if (initialIdx === -1 || slotCenters.some((v) => v === 0)) return;
+
+    dragSessionRef.current = {
+      itemId,
+      startClientY: e.clientY,
+      initialCenterY: slotCenters[initialIdx],
+      slotCenters,
+      draftOrder: [...originalOrder],
+      originalOrder,
+    };
+    setDraggingItemId(itemId);
+    setDragOffsetY(0);
+    setDragOrder([...originalOrder]);
+  };
+
+  const openScheduleModal = (item: MenuItem) => {
+    setScheduleModalItem(item);
+    setScheduleDraft(normalizeAvailabilitySchedule(item.availabilitySchedule));
+  };
+
+  const handleSaveScheduleModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleModalItem) return;
+    handleSaveItemSchedule(scheduleModalItem, scheduleDraft);
+    setScheduleModalItem(null);
+  };
 
   const atItemLimit = resolvedPlan.maxItems !== -1 && allItems.length >= resolvedPlan.maxItems;
+  const itemLimitText =
+    resolvedPlan.maxItems === -1
+      ? `${allItems.length}/∞`
+      : `${allItems.length}/${resolvedPlan.maxItems}`;
   const canDiscount = resolvedPlan.perms.itemDiscounts;
 
   if (isItemEditorOpen) {
     return (
       <div style={{ maxWidth: '880px', margin: '0 auto' }}>
-        {/* Back Action */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+        {/* Top Editor Action Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            marginBottom: '14px',
+          }}
+        >
+          {!editingItemId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsItemEditorOpen(false);
+                openBatchModal();
+              }}
+              style={{
+                ...surfaceCardStyle,
+                borderRadius: '10px',
+                padding: '7px 14px',
+                fontSize: '13px',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              <Sparkles size={15} style={{ color: 'var(--brand-ink, #34D399)' }} />
+              <span>إضافة سريعة بالجملة</span>
+            </button>
+          ) : (
+            <span />
+          )}
+
           <button
             type="button"
             onClick={() => setIsItemEditorOpen(false)}
@@ -137,11 +306,6 @@ export const ItemsPage: React.FC = () => {
             <span>العودة للعناصر</span>
           </button>
         </div>
-
-        {/* Page Heading */}
-        <h1 style={{ fontSize: '28px', fontWeight: 900, color: 'var(--ink)', margin: '0 0 14px' }}>
-          العنصر
-        </h1>
 
         {/* Horizontal Top Underline Tabs */}
         <div className="item-editor-tabs" role="tablist">
@@ -188,19 +352,6 @@ export const ItemsPage: React.FC = () => {
           <button
             type="button"
             role="tab"
-            aria-selected={itemEditorTab === 'availability'}
-            className={`item-editor-tab ${itemEditorTab === 'availability' ? 'active' : ''}`}
-            onClick={() => setItemEditorTab('availability')}
-          >
-            <span>أوقات التوفر</span>
-            {formSchedule.enabled && (
-              <span className="item-editor-tab-badge">مفعّل</span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            role="tab"
             aria-selected={itemEditorTab === 'extraInfo'}
             className={`item-editor-tab ${itemEditorTab === 'extraInfo' ? 'active' : ''}`}
             onClick={() => setItemEditorTab('extraInfo')}
@@ -236,126 +387,76 @@ export const ItemsPage: React.FC = () => {
             {itemEditorTab === 'info' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setShowMediaLibrary(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowMediaLibrary(true);
+                    }
+                  }}
                   style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--line)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: formImage ? '16px' : '24px 16px',
                     borderRadius: '14px',
-                    padding: '14px',
+                    border: '1.5px dashed color-mix(in srgb, var(--line) 85%, transparent)',
+                    background: 'color-mix(in srgb, var(--ink) 3%, transparent)',
+                    textAlign: 'center',
+                    cursor: 'pointer',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                    {formImage && (
-                      <div
+                  {formImage ? (
+                    <>
+                      <img
+                        src={formImage}
+                        alt={formName || 'صورة العنصر'}
+                        referrerPolicy="no-referrer"
                         style={{
-                          position: 'relative',
-                          width: '108px',
-                          height: '108px',
+                          width: '86px',
+                          height: '86px',
                           borderRadius: '14px',
-                          overflow: 'hidden',
-                          border: '1.5px solid var(--brand)',
-                          flexShrink: 0,
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--brand-ink, #34D399)' }}>
+                        اضغط لتغيير الصورة من مكتبة الصور
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormImage('');
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '4px 10px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          color: 'var(--muted)',
+                          cursor: 'pointer',
                         }}
                       >
-                        <img
-                          src={formImage}
-                          alt={formName || 'صورة العنصر'}
-                          referrerPolicy="no-referrer"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                        />
-                        <button
-                          type="button"
-                          aria-label="إزالة الصورة"
-                          onClick={() => setFormImage('')}
-                          style={{
-                            position: 'absolute',
-                            top: '6px',
-                            insetInlineStart: '6px',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            background: 'rgba(15, 23, 42, 0.85)',
-                            color: '#ffffff',
-                            border: 0,
-                            display: 'grid',
-                            placeItems: 'center',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <X size={13} />
-                        </button>
-                        <span
-                          style={{
-                            position: 'absolute',
-                            bottom: '6px',
-                            insetInlineEnd: '6px',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            background: 'var(--surface)',
-                            color: 'var(--brand-ink, #34D399)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                          }}
-                        >
-                          <Pin size={12} />
-                        </span>
+                        إزالة الصورة
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon size={30} strokeWidth={1.7} style={{ color: 'var(--muted)' }} />
+                      <div style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--ink)' }}>
+                        اضف صورة للعنصر (اختياري)
                       </div>
-                    )}
-
-                    <label
-                      style={{
-                        width: '108px',
-                        height: '108px',
-                        borderRadius: '14px',
-                        border: '1.5px dashed var(--line)',
-                        background: 'var(--surface)',
-                        color: 'var(--ink)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        transition: 'border-color 0.15s ease',
-                      }}
-                      title="إضافة صورة من الجهاز"
-                    >
-                      <ImagePlus size={24} style={{ color: 'var(--brand-ink, #34D399)' }} />
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)' }}>
-                        من الجهاز
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={(e) => void handleDeviceImageUpload(e, setFormImage, 'تم اختيار صورة العنصر بنجاح ✓', 'item')}
-                      />
-                    </label>
-
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <label className="f" style={{ marginBottom: 0 }}>
-                        أو رابط الصورة مباشرة (اختياري)
-                        <input
-                          type="text"
-                          dir="ltr"
-                          value={formImage}
-                          onChange={(e) => setFormImage(e.target.value)}
-                          placeholder="https://..."
-                          style={{ ...themedInputStyle, textAlign: 'left', fontSize: '12.5px' }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <ImageSuggestionPicker
-                    productName={formName}
-                    categoryName={allCategories.find((c) => c.id === formCat)?.n}
-                    currentImage={formImage}
-                    onSelect={setFormImage}
-                    titleLabel="اقتراحات صور من قوقل حسب اسم العنصر"
-                  />
+                      <div dir="auto" style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                        مقاس الصورة المفضل 180 × 180، نقبل jpg, png, jpeg
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <label className="f" style={{ marginBottom: 0 }}>
@@ -380,7 +481,7 @@ export const ItemsPage: React.FC = () => {
                   >
                     {allCategories.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.emoji ? `${c.emoji} ` : ''}{c.n}
+                        {c.n}
                       </option>
                     ))}
                   </select>
@@ -963,44 +1064,7 @@ export const ItemsPage: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 4: أوقات التوفر */}
-            {itemEditorTab === 'availability' && (() => {
-              const selectedParentCat = allCategories.find((c) => c.id === formCat);
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {selectedParentCat?.availabilitySchedule?.enabled && (
-                    <div
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '11px',
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        border: '1px solid rgba(245, 158, 11, 0.28)',
-                        color: 'var(--ink)',
-                        fontSize: '12.5px',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                    >
-                      <Clock size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                      <span>
-                        ملاحظة: القسم المختار <b>({selectedParentCat.n})</b> محدد مسبقاً بأوقات توفر:{' '}
-                        {formatScheduleLabel(selectedParentCat.availabilitySchedule)}
-                      </span>
-                    </div>
-                  )}
-                  <AvailabilityScheduleEditor
-                    value={formSchedule}
-                    onChange={setFormSchedule}
-                    targetLabel="العنصر"
-                    inputStyle={themedInputStyle}
-                  />
-                </div>
-              );
-            })()}
-
-            {/* TAB 5: معلومات إضافية */}
+            {/* TAB 4: معلومات إضافية */}
             {itemEditorTab === 'extraInfo' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div
@@ -1171,137 +1235,133 @@ export const ItemsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom Save / Cancel Bar */}
+          {/* Centered Save Button */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '12px',
               marginTop: '20px',
-              flexWrap: 'wrap',
             }}
           >
             <button
               type="submit"
               className="btn p"
-              style={{ fontWeight: 900, padding: '12px 32px', fontSize: '15px', minWidth: '180px' }}
+              style={{
+                minWidth: '180px',
+                height: '44px',
+                borderRadius: '12px',
+                padding: '0 26px',
+                fontSize: '14.5px',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <Save size={16} />
-              <span>{editingItemId ? 'حفظ التعديلات' : 'حفظ العنصر'}</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setIsItemEditorOpen(false)}
-              style={{ fontWeight: 700, padding: '12px 22px' }}
-            >
-              إلغاء
+              {editingItemId ? 'حفظ التعديلات' : 'إضافة عنصر'}
             </button>
           </div>
         </form>
+
+        <MediaLibraryModal
+          isOpen={showMediaLibrary}
+          items={mediaLibraryItems}
+          currentUrl={formImage}
+          onSelect={(url) => setFormImage(url)}
+          onUploadFiles={uploadImagesToLibrary}
+          onDeleteItem={(mediaId) => {
+            const target = mediaLibraryItems.find((m) => m.id === mediaId);
+            if (target && target.url === formImage) {
+              setFormImage('');
+            }
+            removeMediaLibraryItem(mediaId);
+          }}
+          onClose={() => setShowMediaLibrary(false)}
+        />
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'var(--ink)', margin: 0 }}>
-              {customTabLabel('menu', 'العناصر والمنتجات')}
-            </h1>
-            <span
-              className="tabular-nums"
-              style={{
-                fontSize: '12px',
-                fontWeight: 800,
-                padding: '4px 10px',
-                borderRadius: '9px',
-                background: atItemLimit ? 'rgba(245, 158, 11, 0.14)' : 'var(--soft)',
-                color: atItemLimit ? '#f59e0b' : 'var(--brand-ink, #34D399)',
-                border: '1px solid var(--line)',
-              }}
-            >
-              {resolvedPlan.maxItems === -1
-                ? `${allItems.length} / غير محدود`
-                : `${allItems.length} / ${resolvedPlan.maxItems} عنصر`}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={openNewItemEditor}
-            style={{
-              background: atItemLimit ? 'rgba(148, 163, 184, 0.25)' : 'var(--brand)',
-              color: atItemLimit ? 'var(--muted)' : 'var(--on-brand)',
-              border: 0,
-              borderRadius: '10px',
-              padding: '10px 18px',
-              fontSize: '14px',
-              fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={17} />
-            <span>{atItemLimit ? 'الحد مكتمل 🔒' : 'إضافة عنصر'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={openBatchModal}
-            style={{
-              ...surfaceCardStyle,
-              borderRadius: '10px',
-              padding: '10px 16px',
-              fontSize: '13.5px',
-              fontWeight: 800,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              opacity: atItemLimit ? 0.65 : 1,
-            }}
-          >
-            <Sparkles size={16} style={{ color: 'var(--brand-ink, #34D399)' }} />
-            <span>إضافة سريعة بالجملة</span>
-          </button>
-        </div>
-      </div>
-
       <div
         style={{
-          ...surfaceCardStyle,
-          border: '1px solid var(--line)',
-          borderRadius: '12px',
-          padding: '10px 16px',
           display: 'flex',
           alignItems: 'center',
-          marginBottom: '14px',
+          justifyContent: 'space-between',
+          marginBottom: '18px',
+          gap: '12px',
+          flexWrap: 'wrap',
         }}
       >
-        <input
-          type="text"
-          value={searchItemQuery}
-          onChange={(e) => setSearchItemQuery(e.target.value)}
-          placeholder="بحث في العناصر..."
+        <button
+          type="button"
+          onClick={openNewItemEditor}
+          className={atItemLimit ? 'btn s' : 'btn p'}
           style={{
-            border: 'none',
-            background: 'transparent',
-            width: '100%',
-            outline: 'none',
-            fontSize: '14.5px',
-            color: 'var(--ink)',
+            height: '42px',
+            minHeight: '42px',
+            borderRadius: '12px',
+            padding: '0 16px',
+            fontSize: '13.5px',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'pointer',
           }}
-        />
-        <Search size={18} style={{ color: 'var(--muted)', marginInlineStart: '10px' }} />
+        >
+          <span>{atItemLimit ? 'الحد مكتمل 🔒' : 'إضافة عنصر'}</span>
+          <Plus size={17} />
+        </button>
+
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-disabled="true"
+          style={{
+            height: '42px',
+            minHeight: '42px',
+            borderRadius: '12px',
+            padding: '0 10px 0 12px',
+            border: '1px solid var(--line)',
+            background: 'var(--card)',
+            color: 'var(--ink)',
+            fontSize: '12.5px',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'default',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          <span style={{ color: 'var(--muted)', fontWeight: 700 }}>عدد العناصر</span>
+          <span
+            dir="ltr"
+            className="tabular-nums"
+            style={{
+              fontSize: '12.5px',
+              fontWeight: 800,
+              padding: '3px 9px',
+              borderRadius: '8px',
+              background: atItemLimit
+                ? 'rgba(239, 68, 68, 0.14)'
+                : 'color-mix(in srgb, var(--ink) 8%, transparent)',
+              border: atItemLimit
+                ? '1px solid rgba(239, 68, 68, 0.35)'
+                : '1px solid color-mix(in srgb, var(--line) 80%, transparent)',
+              color: atItemLimit ? '#ef4444' : 'var(--ink)',
+              lineHeight: 1.3,
+            }}
+          >
+            {itemLimitText}
+          </span>
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
@@ -1398,34 +1458,76 @@ export const ItemsPage: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {filteredItems.map((item) => {
+        {displayItems.map((item) => {
           const catObj = allCategories.find((c) => c.id === item.cat);
           const isItemVisible = item.published !== false && item.available !== false;
+          const isDragging = draggingItemId === item.id;
+          const hasSchedule = Boolean(item.availabilitySchedule?.enabled);
           const sizesCount = (item.sizes || []).length;
           const choicesCount = (item.choices || []).length;
           const extrasCount = (item.extras || []).length;
           return (
             <div
               key={item.id}
+              ref={(el) => {
+                if (el) {
+                  rowRefs.current.set(item.id, el);
+                } else {
+                  rowRefs.current.delete(item.id);
+                }
+              }}
               style={{
                 ...surfaceCardStyle,
                 borderRadius: '12px',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '12px',
+                gap: '10px',
                 opacity: isItemVisible ? 1 : 0.65,
+                position: 'relative',
+                zIndex: isDragging ? 40 : 1,
+                transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.015)` : 'none',
+                border: isDragging ? '1.5px solid var(--brand)' : surfaceCardStyle.border,
+                boxShadow: isDragging ? '0 14px 32px rgba(0, 0, 0, 0.35)' : undefined,
+                transition: isDragging
+                  ? 'box-shadow 0.15s ease, border-color 0.15s ease'
+                  : 'transform 0.18s ease, opacity 0.15s ease',
+                userSelect: draggingItemId ? 'none' : undefined,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '160px', flex: 1 }}>
-                <SixDotDragHandle />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                {canReorder && (
+                  <button
+                    type="button"
+                    onPointerDown={(e) => startHandleDrag(e, item.id)}
+                    title="اسحب لتحريك العنصر للأعلى أو للأسفل"
+                    aria-label={`تحريك عنصر ${item.n}`}
+                    style={{
+                      touchAction: 'none',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '6px 4px',
+                      margin: '-6px -2px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      flexShrink: 0,
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <SixDotDragHandle />
+                  </button>
+                )}
                 {item.img && (
                   <img
                     src={item.img}
                     alt={item.n}
                     referrerPolicy="no-referrer"
-                    style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+                    style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
                   />
                 )}
                 <div style={{ minWidth: 0 }}>
@@ -1567,29 +1669,6 @@ export const ItemsPage: React.FC = () => {
                         {extrasCount} إضافات
                       </span>
                     )}
-                    {item.availabilitySchedule?.enabled && (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          padding: '1px 7px',
-                          borderRadius: '6px',
-                          background: isWithinAvailabilitySchedule(item.availabilitySchedule)
-                            ? 'rgba(16, 185, 129, 0.12)'
-                            : 'rgba(245, 158, 11, 0.14)',
-                          color: isWithinAvailabilitySchedule(item.availabilitySchedule) ? '#10b981' : '#f59e0b',
-                          border: isWithinAvailabilitySchedule(item.availabilitySchedule)
-                            ? '1px solid rgba(16, 185, 129, 0.28)'
-                            : '1px solid rgba(245, 158, 11, 0.3)',
-                        }}
-                      >
-                        <Clock size={10} />
-                        <span>{formatScheduleLabel(item.availabilitySchedule)}</span>
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1607,7 +1686,7 @@ export const ItemsPage: React.FC = () => {
                 {catObj?.n || 'بدون قسم'}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <button
                   type="button"
                   role="switch"
@@ -1622,11 +1701,31 @@ export const ItemsPage: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={() => openScheduleModal(item)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    border: hasSchedule ? '1px solid rgba(255, 59, 48, 0.6)' : '1px solid var(--line)',
+                    background: hasSchedule ? 'rgba(255, 59, 48, 0.16)' : 'var(--bg)',
+                    color: hasSchedule ? '#ff3b30' : 'var(--ink)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                  title="تعيين وقت توفر العنصر"
+                  aria-label="تعيين وقت توفر العنصر"
+                >
+                  <Clock size={14} />
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEditItem(item)}
                   style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '8px',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
                     border: '1px solid var(--line)',
                     background: 'var(--bg)',
                     color: 'var(--ink)',
@@ -1636,32 +1735,119 @@ export const ItemsPage: React.FC = () => {
                   }}
                   title="تعديل العنصر"
                 >
-                  <Edit size={15} />
+                  <Edit size={14} />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleDeleteItem(item)}
                   style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    color: '#ef4444',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--line)',
+                    background: 'var(--bg)',
+                    color: 'var(--ink)',
                     display: 'grid',
                     placeItems: 'center',
                     cursor: 'pointer',
                   }}
                   title="حذف العنصر"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Dedicated Schedule / Timer Modal opened from the row Clock button */}
+      {scheduleModalItem && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setScheduleModalItem(null)} />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(480px, 94vw)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              ...surfaceCardStyle,
+              borderRadius: '20px',
+              padding: '18px 16px 20px',
+              zIndex: 99999,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 900, color: 'var(--ink)' }}>
+                توقيت توفر: {scheduleModalItem.n}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setScheduleModalItem(null)}
+                aria-label="إغلاق"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '9px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSaveScheduleModal}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              <AvailabilityScheduleEditor
+                value={scheduleDraft}
+                onChange={setScheduleDraft}
+                targetLabel="العنصر"
+                inputStyle={themedInputStyle}
+                flat
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
+                <button
+                  type="submit"
+                  className="btn p"
+                  style={{
+                    minWidth: '180px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    padding: '0 26px',
+                    fontSize: '14.5px',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  حفظ التوقيت
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
 
       {showBatchModal && (
         <>
