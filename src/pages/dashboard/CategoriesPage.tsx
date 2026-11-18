@@ -17,8 +17,6 @@ import { AvailabilityScheduleEditor } from '../../components/AvailabilitySchedul
 import { MediaLibraryModal } from '../../components/MediaLibraryModal';
 import {
   DEFAULT_AVAILABILITY_SCHEDULE,
-  formatScheduleLabel,
-  isWithinAvailabilitySchedule,
   normalizeAvailabilitySchedule,
 } from '../../utils/availability';
 import {
@@ -225,11 +223,11 @@ export const CategoriesPage: React.FC = () => {
             height: '42px',
             minHeight: '42px',
             borderRadius: '12px',
-            padding: '0 14px',
+            padding: '0 10px 0 12px',
             border: '1px solid var(--line)',
             background: 'var(--card)',
             color: 'var(--ink)',
-            fontSize: '13.5px',
+            fontSize: '12.5px',
             fontWeight: 700,
             display: 'inline-flex',
             alignItems: 'center',
@@ -245,9 +243,18 @@ export const CategoriesPage: React.FC = () => {
             dir="ltr"
             className="tabular-nums"
             style={{
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: 800,
-              color: 'var(--ink)',
+              padding: '3px 9px',
+              borderRadius: '8px',
+              background: atCatLimit
+                ? 'rgba(239, 68, 68, 0.14)'
+                : 'color-mix(in srgb, var(--ink) 8%, transparent)',
+              border: atCatLimit
+                ? '1px solid rgba(239, 68, 68, 0.35)'
+                : '1px solid color-mix(in srgb, var(--line) 80%, transparent)',
+              color: atCatLimit ? '#ef4444' : 'var(--ink)',
+              lineHeight: 1.3,
             }}
           >
             {catLimitText}
@@ -338,30 +345,6 @@ export const CategoriesPage: React.FC = () => {
                   >
                     {c.n}
                   </span>
-                  {hasSchedule && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        marginTop: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '7px',
-                        background: isWithinAvailabilitySchedule(c.availabilitySchedule)
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : 'rgba(245, 158, 11, 0.14)',
-                        color: isWithinAvailabilitySchedule(c.availabilitySchedule) ? '#10b981' : '#f59e0b',
-                        border: isWithinAvailabilitySchedule(c.availabilitySchedule)
-                          ? '1px solid rgba(16, 185, 129, 0.28)'
-                          : '1px solid rgba(245, 158, 11, 0.3)',
-                      }}
-                    >
-                      <Clock size={11} />
-                      <span>{formatScheduleLabel(c.availabilitySchedule)}</span>
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -615,12 +598,12 @@ export const CategoriesPage: React.FC = () => {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'min(540px, 94vw)',
+              width: 'min(480px, 94vw)',
               maxHeight: '90vh',
               overflowY: 'auto',
               ...surfaceCardStyle,
               borderRadius: '20px',
-              padding: '20px 22px 22px',
+              padding: '18px 16px 20px',
               zIndex: 99999,
               boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
             }}
@@ -630,10 +613,10 @@ export const CategoriesPage: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: '14px',
+                marginBottom: '12px',
               }}
             >
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: 'var(--ink)' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 900, color: 'var(--ink)' }}>
                 توقيت توفر: {scheduleModalCat.n}
               </h3>
               <button

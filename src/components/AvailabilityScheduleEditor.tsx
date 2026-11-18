@@ -62,16 +62,28 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
     });
   };
 
-  const baseInputStyle: React.CSSProperties = {
+  const timeInputStyle: React.CSSProperties = {
+    ...(inputStyle || {}),
     width: '100%',
-    padding: '9px 11px',
+    minWidth: 0,
+    height: '40px',
+    padding: '0 10px',
     borderRadius: '10px',
     border: '1px solid var(--line)',
     background: 'var(--surface)',
     color: 'var(--ink)',
-    fontSize: '13.5px',
-    fontWeight: 700,
-    ...(inputStyle || {}),
+    fontSize: '13px',
+    fontWeight: 800,
+    textAlign: 'center',
+    boxSizing: 'border-box',
+    marginTop: 0,
+  };
+
+  const sectionLabelStyle: React.CSSProperties = {
+    fontSize: '12px',
+    fontWeight: 800,
+    color: 'var(--muted)',
+    marginBottom: '8px',
   };
 
   return (
@@ -83,7 +95,7 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
               border: 'none',
               borderTop: '1px solid color-mix(in srgb, var(--line) 65%, transparent)',
               borderRadius: 0,
-              padding: '14px 2px 2px',
+              padding: '14px 0 2px',
               display: 'flex',
               flexDirection: 'column',
               gap: '14px',
@@ -92,7 +104,7 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
               background: 'var(--panel)',
               border: '1px solid var(--line)',
               borderRadius: '14px',
-              padding: '14px 16px',
+              padding: '14px',
               display: 'flex',
               flexDirection: 'column',
               gap: '14px',
@@ -105,30 +117,36 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
+          gap: '10px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flex: 1, minWidth: 0 }}>
           <Clock
-            size={18}
+            size={17}
             style={{
               color: sched.enabled ? 'var(--brand-ink, #34D399)' : 'var(--muted)',
               flexShrink: 0,
-              marginTop: '2px',
             }}
           />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--ink)' }}>
-              متوفر بأوقات محددة باليوم
+            <div style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--ink)', lineHeight: 1.3 }}>
+              متوفر بأوقات محددة
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px', lineHeight: 1.5 }}>
-              حدد ساعات أو أيام معينة لتوفر هذا {targetLabel} (مثال: وجبة فطور من 8 صباحاً إلى 12 ظهراً)
+            <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '2px', lineHeight: 1.35 }}>
+              حدد ساعات وأيام توفر {targetLabel}
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: sched.enabled ? '#10b981' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+          <span
+            style={{
+              fontSize: '11.5px',
+              fontWeight: 800,
+              color: sched.enabled ? '#10b981' : 'var(--muted)',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {sched.enabled ? 'مفعّل' : 'متوفر دائماً'}
           </span>
           <button
@@ -159,12 +177,16 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
             borderTop: '1px solid var(--line)',
           }}
         >
-          {/* Quick Presets */}
+          {/* Quick Presets (2x2 clean grid) */}
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--muted)', marginBottom: '7px' }}>
-              أوقات جاهزة سريعة:
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div style={sectionLabelStyle}>أوقات سريعة</div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: '7px',
+              }}
+            >
               {AVAILABILITY_PRESETS.map((preset) => {
                 const isSelected =
                   windows.length === 1 &&
@@ -176,14 +198,21 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                     type="button"
                     onClick={() => updateWindows([{ from: preset.from, to: preset.to }])}
                     style={{
-                      padding: '5px 10px',
-                      borderRadius: '8px',
+                      minHeight: '36px',
+                      padding: '6px 8px',
+                      borderRadius: '10px',
                       border: isSelected ? '1px solid var(--brand)' : '1px solid var(--line)',
-                      background: isSelected ? 'color-mix(in srgb, var(--brand) 16%, transparent)' : 'var(--surface)',
+                      background: isSelected
+                        ? 'color-mix(in srgb, var(--brand) 16%, transparent)'
+                        : 'var(--surface)',
                       color: isSelected ? 'var(--brand-ink, #34D399)' : 'var(--ink)',
-                      fontSize: '11.5px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {preset.label}
@@ -195,19 +224,38 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
 
           {/* Time Windows */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--ink)' }}>
-                أوقات التوفر اليومية
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--muted)' }}>
+                ساعات التوفر اليومية
               </span>
               {windows.length < 3 && (
                 <button
                   type="button"
-                  className="btn s"
                   onClick={() => updateWindows([...windows, { from: '18:00', to: '23:00' }])}
-                  style={{ fontSize: '11.5px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  style={{
+                    height: '28px',
+                    padding: '0 10px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--line)',
+                    background: 'var(--surface)',
+                    color: 'var(--ink)',
+                    fontSize: '11.5px',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                  }}
                 >
                   <Plus size={13} />
-                  <span>إضافة فترة ثانية باليوم</span>
+                  <span>فترة إضافية</span>
                 </button>
               )}
             </div>
@@ -217,18 +265,19 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                 key={idx}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: windows.length > 1 ? '1fr 1fr auto' : '1fr 1fr',
-                  gap: '10px',
+                  gridTemplateColumns:
+                    windows.length > 1 ? 'minmax(0, 1fr) minmax(0, 1fr) 38px' : 'minmax(0, 1fr) minmax(0, 1fr)',
+                  gap: '8px',
                   alignItems: 'end',
-                  background: 'var(--bg)',
+                  background: 'color-mix(in srgb, var(--ink) 3%, transparent)',
                   border: '1px solid var(--line)',
-                  borderRadius: '11px',
-                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  padding: '10px',
                 }}
               >
-                <label className="f" style={{ marginBottom: 0 }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--muted)', fontWeight: 700 }}>
-                    {windows.length > 1 ? `الفترة #${idx + 1} — من الساعة` : 'من الساعة'}
+                <label className="f" style={{ marginBottom: 0, gap: '5px', minWidth: 0 }}>
+                  <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700 }}>
+                    {windows.length > 1 ? `من (#${idx + 1})` : 'من الساعة'}
                   </span>
                   <input
                     type="time"
@@ -238,12 +287,12 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                       const val = e.target.value || '08:00';
                       updateWindows(windows.map((row, i) => (i === idx ? { ...row, from: val } : row)));
                     }}
-                    style={baseInputStyle}
+                    style={timeInputStyle}
                   />
                 </label>
 
-                <label className="f" style={{ marginBottom: 0 }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--muted)', fontWeight: 700 }}>
+                <label className="f" style={{ marginBottom: 0, gap: '5px', minWidth: 0 }}>
+                  <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700 }}>
                     إلى الساعة
                   </span>
                   <input
@@ -254,7 +303,7 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                       const val = e.target.value || '12:00';
                       updateWindows(windows.map((row, i) => (i === idx ? { ...row, to: val } : row)));
                     }}
-                    style={baseInputStyle}
+                    style={timeInputStyle}
                   />
                 </label>
 
@@ -265,11 +314,11 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                     onClick={() => updateWindows(windows.filter((_, i) => i !== idx))}
                     style={{
                       width: '38px',
-                      height: '38px',
+                      height: '40px',
                       borderRadius: '10px',
-                      border: '1px solid rgba(239, 68, 68, 0.35)',
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      color: '#ef4444',
+                      border: '1px solid var(--line)',
+                      background: 'var(--surface)',
+                      color: 'var(--ink)',
                       display: 'grid',
                       placeItems: 'center',
                       cursor: 'pointer',
@@ -282,30 +331,37 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
             ))}
           </div>
 
-          {/* Days Selector */}
+          {/* Days Selector (4x2 symmetrical grid: كل الأيام + 7 days) */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px', flexWrap: 'wrap', gap: '6px' }}>
-              <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--ink)' }}>
-                الأيام المتاح بها
-              </span>
+            <div style={sectionLabelStyle}>الأيام المتاحة</div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: '6px',
+              }}
+            >
               <button
                 type="button"
                 onClick={() => onChange({ ...sched, days: [] })}
                 style={{
-                  padding: '3px 9px',
-                  borderRadius: '7px',
+                  height: '36px',
+                  padding: '0 4px',
+                  borderRadius: '9px',
                   border: allDaysSelected ? '1px solid var(--brand)' : '1px solid var(--line)',
-                  background: allDaysSelected ? 'color-mix(in srgb, var(--brand) 16%, transparent)' : 'var(--surface)',
-                  color: allDaysSelected ? 'var(--brand-ink, #34D399)' : 'var(--muted)',
-                  fontSize: '11px',
+                  background: allDaysSelected
+                    ? 'color-mix(in srgb, var(--brand) 18%, transparent)'
+                    : 'var(--surface)',
+                  color: allDaysSelected ? 'var(--brand-ink, #34D399)' : 'var(--ink)',
+                  fontSize: '11.5px',
                   fontWeight: 800,
                   cursor: 'pointer',
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                كل أيام الأسبوع
+                كل الأيام
               </button>
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {AVAILABILITY_DAYS.map((day) => {
                 const isSelected = !allDaysSelected && selectedDays.includes(day.key);
                 return (
@@ -314,14 +370,17 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
                     type="button"
                     onClick={() => toggleDay(day.key)}
                     style={{
-                      padding: '6px 10px',
-                      borderRadius: '8px',
+                      height: '36px',
+                      padding: '0 4px',
+                      borderRadius: '9px',
                       border: isSelected ? '1px solid var(--brand)' : '1px solid var(--line)',
                       background: isSelected ? 'var(--brand)' : 'var(--surface)',
                       color: isSelected ? 'var(--on-brand, #fff)' : 'var(--ink)',
                       fontSize: '11.5px',
                       fontWeight: 700,
                       cursor: 'pointer',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {day.label}
@@ -333,47 +392,62 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
 
           {/* Behavior Outside Hours */}
           <div>
-            <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--ink)', marginBottom: '7px' }}>
-              التصرف خارج أوقات التوفر:
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => onChange({ ...sched, behavior: 'badge' })}
-                style={{
-                  textAlign: 'start',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  border: sched.behavior !== 'hide' ? '1.5px solid var(--brand)' : '1px solid var(--line)',
-                  background: sched.behavior !== 'hide' ? 'color-mix(in srgb, var(--brand) 10%, var(--surface))' : 'var(--surface)',
-                  color: 'var(--ink)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: '12.5px', fontWeight: 800 }}>يظهر مع تنبيه الوقت</div>
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
-                  يشاهد الزبون {targetLabel} مع أوقات توفره ولا يمكن طلبه خارج الوقت
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onChange({ ...sched, behavior: 'hide' })}
-                style={{
-                  textAlign: 'start',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  border: sched.behavior === 'hide' ? '1.5px solid var(--brand)' : '1px solid var(--line)',
-                  background: sched.behavior === 'hide' ? 'color-mix(in srgb, var(--brand) 10%, var(--surface))' : 'var(--surface)',
-                  color: 'var(--ink)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: '12.5px', fontWeight: 800 }}>إخفاء تلقائي خارج الوقت</div>
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
-                  يختفي {targetLabel} تماماً من المنيو خارج ساعات التوفر المحددة
-                </div>
-              </button>
+            <div style={sectionLabelStyle}>خارج أوقات التوفر</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '7px' }}>
+              {[
+                {
+                  key: 'badge' as const,
+                  active: sched.behavior !== 'hide',
+                  title: 'يظهر مع تنبيه الوقت',
+                  desc: `يظهر ${targetLabel} في المنيو مع تنبيه عدم توفره حالياً`,
+                },
+                {
+                  key: 'hide' as const,
+                  active: sched.behavior === 'hide',
+                  title: 'إخفاء تلقائي خارج الوقت',
+                  desc: `يختفي ${targetLabel} تلقائياً خارج الساعات المحددة`,
+                },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onChange({ ...sched, behavior: opt.key })}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    textAlign: 'start',
+                    padding: '10px 12px',
+                    borderRadius: '11px',
+                    border: opt.active ? '1.5px solid var(--brand)' : '1px solid var(--line)',
+                    background: opt.active
+                      ? 'color-mix(in srgb, var(--brand) 10%, var(--surface))'
+                      : 'var(--surface)',
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      border: opt.active ? '5px solid var(--brand)' : '1.5px solid var(--muted)',
+                      background: opt.active ? '#fff' : 'transparent',
+                      flexShrink: 0,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, lineHeight: 1.3 }}>
+                      {opt.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px', lineHeight: 1.35 }}>
+                      {opt.desc}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -388,21 +462,25 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
               padding: '9px 12px',
               borderRadius: '10px',
               background: activeNow ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.12)',
-              border: activeNow ? '1px solid rgba(16, 185, 129, 0.28)' : '1px solid rgba(245, 158, 11, 0.3)',
-              fontSize: '12px',
+              border: activeNow
+                ? '1px solid rgba(16, 185, 129, 0.28)'
+                : '1px solid rgba(245, 158, 11, 0.3)',
+              fontSize: '11.5px',
               fontWeight: 700,
               color: activeNow ? '#10b981' : '#f59e0b',
             }}
           >
             <span>
               {activeNow
-                ? `متاح حالياً حسب التوقيت الآن`
+                ? 'متاح حالياً حسب التوقيت الآن'
                 : sched.behavior === 'hide'
-                ? `خارج الوقت الآن — مخفي حالياً من المنيو`
-                : `خارج الوقت الآن — يظهر كغير متاح مع تنبيه الوقت`}
+                ? 'خارج الوقت الآن — مخفي من المنيو'
+                : 'خارج الوقت الآن — يظهر كغير متاح'}
             </span>
             {scheduleSummary && (
-              <span style={{ color: 'var(--ink)', fontSize: '11.5px' }}>{scheduleSummary}</span>
+              <span style={{ color: 'var(--ink)', fontSize: '11.5px', fontWeight: 800 }}>
+                {scheduleSummary}
+              </span>
             )}
           </div>
         </div>
