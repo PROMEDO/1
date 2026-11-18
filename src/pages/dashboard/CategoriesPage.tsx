@@ -189,7 +189,7 @@ export const CategoriesPage: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           marginBottom: '18px',
           gap: '12px',
           flexWrap: 'wrap',
@@ -213,29 +213,47 @@ export const CategoriesPage: React.FC = () => {
             cursor: 'pointer',
           }}
         >
-          <Plus size={17} />
           <span>{atCatLimit ? 'الحد مكتمل 🔒' : 'إضافة قسم'}</span>
+          <Plus size={17} />
+        </button>
+
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-disabled="true"
+          style={{
+            height: '42px',
+            minHeight: '42px',
+            borderRadius: '12px',
+            padding: '0 14px',
+            border: '1px solid var(--line)',
+            background: 'var(--card)',
+            color: 'var(--ink)',
+            fontSize: '13.5px',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'default',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          <span style={{ color: 'var(--muted)', fontWeight: 700 }}>عدد الأقسام</span>
           <span
+            dir="ltr"
             className="tabular-nums"
             style={{
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 800,
-              padding: '2px 8px',
-              borderRadius: '8px',
-              background: atCatLimit ? 'rgba(148, 163, 184, 0.2)' : 'rgba(0, 0, 0, 0.16)',
-              lineHeight: 1.35,
+              color: 'var(--ink)',
             }}
           >
             {catLimitText}
           </span>
         </button>
       </div>
-
-      {canReorder && (
-        <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '10px', fontWeight: 600 }}>
-          اسحب أي قسم من النقاط الست لرفعه أو إنزاله وترتيب ظهوره في المنيو.
-        </div>
-      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {displayCategories.map((c) => {
@@ -367,9 +385,9 @@ export const CategoriesPage: React.FC = () => {
                     width: '32px',
                     height: '32px',
                     borderRadius: '10px',
-                    border: hasSchedule ? '1px solid var(--brand)' : '1px solid var(--line)',
-                    background: hasSchedule ? 'var(--soft)' : 'var(--bg)',
-                    color: hasSchedule ? 'var(--brand-ink, #34D399)' : 'var(--ink)',
+                    border: hasSchedule ? '1px solid rgba(255, 59, 48, 0.6)' : '1px solid var(--line)',
+                    background: hasSchedule ? 'rgba(255, 59, 48, 0.16)' : 'var(--bg)',
+                    color: hasSchedule ? '#ff3b30' : 'var(--ink)',
                     display: 'grid',
                     placeItems: 'center',
                     cursor: 'pointer',
@@ -406,9 +424,9 @@ export const CategoriesPage: React.FC = () => {
                     width: '32px',
                     height: '32px',
                     borderRadius: '10px',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    color: '#ef4444',
+                    border: '1px solid var(--line)',
+                    background: 'var(--bg)',
+                    color: 'var(--ink)',
                     display: 'grid',
                     placeItems: 'center',
                     cursor: 'pointer',
