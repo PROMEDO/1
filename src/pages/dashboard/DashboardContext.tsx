@@ -1388,6 +1388,19 @@ function useDashboardController({
     showToast(nextOn ? `تم إظهار قسم "${cat.n}" في المنيو` : `تم إخفاء قسم "${cat.n}" من المنيو`);
   };
 
+  const handleSaveCategorySchedule = (cat: Category, schedule: AvailabilitySchedule) => {
+    putItem<Category>(`cats/${cat.id}`, {
+      ...cat,
+      availabilitySchedule: sanitizeAvailabilityScheduleForSave(schedule),
+    });
+    onRefresh();
+    showToast(
+      schedule.enabled
+        ? `تم حفظ أوقات توفر قسم "${cat.n}" ✓`
+        : `تم ضبط قسم "${cat.n}" كمتوفر دائماً ✓`
+    );
+  };
+
   const handleToggleItemVisibility = (item: MenuItem) => {
     const currentlyOn = item.published !== false && item.available !== false;
     const nextOn = !currentlyOn;
@@ -2146,6 +2159,7 @@ function useDashboardController({
     handleOpenEditCategory,
     handleDeleteCategory,
     handleReorderCategories,
+    handleSaveCategorySchedule,
     // Items
     searchItemQuery,
     setSearchItemQuery,

@@ -3,22 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ArrowDown,
-  ArrowUp,
   Clock,
-  Compass,
   Edit,
   Image as ImageIcon,
   Plus,
-  Search,
   Trash2,
   X,
 } from 'lucide-react';
+import { AvailabilitySchedule, Category } from '../../types';
 import { AvailabilityScheduleEditor } from '../../components/AvailabilityScheduleEditor';
 import { MediaLibraryModal } from '../../components/MediaLibraryModal';
-import { formatScheduleLabel, isWithinAvailabilitySchedule } from '../../utils/availability';
+import {
+  DEFAULT_AVAILABILITY_SCHEDULE,
+  formatScheduleLabel,
+  isWithinAvailabilitySchedule,
+  normalizeAvailabilitySchedule,
+} from '../../utils/availability';
 import {
   SixDotDragHandle,
   surfaceCardStyle,
@@ -30,9 +32,6 @@ export const CategoriesPage: React.FC = () => {
   const {
     resolvedPlan,
     allCategories,
-    filteredCategories,
-    searchCatQuery,
-    setSearchCatQuery,
     showCatModal,
     setShowCatModal,
     editingCatId,
@@ -40,66 +39,142 @@ export const CategoriesPage: React.FC = () => {
     setCatNameInput,
     catImageInput,
     setCatImageInput,
-    catScheduleInput,
-    setCatScheduleInput,
     openNewCategoryModal,
     handleToggleCategoryVisibility,
     handleSaveCategory,
     handleOpenEditCategory,
     handleDeleteCategory,
     handleReorderCategories,
+    handleSaveCategorySchedule,
     mediaLibraryItems,
     uploadImagesToLibrary,
     removeMediaLibraryItem,
   } = useDashboard();
 
-  const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
-  const [dragOverCatId, setDragOverCatId] = useState<string | null>(null);
-  const [showCatSearch, setShowCatSearch] = useState<boolean>(() => Boolean(searchCatQuery.trim()));
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
-  const catSearchInputRef = useRef<HTMLInputElement>(null);
+  const [scheduleModalCat, setScheduleModalCat] = useState<Category | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<AvailabilitySchedule>(() =>
+    normalizeAvailabilitySchedule(DEFAULT_AVAILABILITY_SCHEDULE)
+  );
 
-  const isSearchVisible = showCatSearch || Boolean(searchCatQuery.trim());
-  const canReorder = !searchCatQuery.trim() && allCategories.length > 1;
+  // Smooth touch + mouse pointer-drag reordering via the 6-dot handle
+  const [draggingCatId, setDraggingCatId] = useState<string | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState<number>(0);
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const dragSessionRef = useRef<{
+    catId: string;
+    startClientY: number;
+    initialCenterY: number;
+    slotCenters: number[];
+    draftOrder: string[];
+    originalOrder: string[];
+  } | null>(null);
 
-  const toggleCategorySearch = () => {
-    if (isSearchVisible) {
-      setSearchCatQuery('');
-      setShowCatSearch(false);
-    } else {
-      setShowCatSearch(true);
-      setTimeout(() => catSearchInputRef.current?.focus(), 20);
+  const canReorder = allCategories.length > 1;
+
+  const displayCategories = dragOrder
+    ? dragOrder
+        .map((id) => allCategories.find((c) => c.id === id))
+        .filter((c): c is Category => Boolean(c))
+    : allCategories;
+
+  useEffect(() => {
+    const handlePointerMove = (ev: PointerEvent) => {
+      const st = dragSessionRef.current;
+      if (!st) return;
+      ev.preventDefault();
+
+      const currentCenterY = st.initialCenterY + (ev.clientY - st.startClientY);
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      st.slotCenters.forEach((sc, idx) => {
+        const dist = Math.abs(currentCenterY - sc);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = idx;
+        }
+      });
+
+      const currentIdx = st.draftOrder.indexOf(st.catId);
+      if (currentIdx !== -1 && bestIdx !== currentIdx) {
+        const nextOrder = [...st.draftOrder];
+        const [moved] = nextOrder.splice(currentIdx, 1);
+        nextOrder.splice(bestIdx, 0, moved);
+        st.draftOrder = nextOrder;
+        setDragOrder([...nextOrder]);
+      }
+
+      setDragOffsetY(currentCenterY - st.slotCenters[bestIdx]);
+    };
+
+    const finishDrag = () => {
+      const st = dragSessionRef.current;
+      if (!st) return;
+      const changed = st.draftOrder.some((id, idx) => id !== st.originalOrder[idx]);
+      const finalOrder = [...st.draftOrder];
+      dragSessionRef.current = null;
+      setDraggingCatId(null);
+      setDragOffsetY(0);
+      setDragOrder(null);
+      if (changed) {
+        handleReorderCategories(finalOrder);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', finishDrag);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', finishDrag);
+      window.removeEventListener('pointercancel', finishDrag);
+    };
+  }, [handleReorderCategories]);
+
+  const startHandleDrag = (e: React.PointerEvent<HTMLButtonElement>, catId: string) => {
+    if (!canReorder) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore if browser declines pointer capture
     }
+
+    const originalOrder = allCategories.map((c) => c.id);
+    const slotCenters = originalOrder.map((id) => {
+      const el = rowRefs.current.get(id);
+      if (!el) return 0;
+      const rect = el.getBoundingClientRect();
+      return rect.top + rect.height / 2;
+    });
+    const initialIdx = originalOrder.indexOf(catId);
+    if (initialIdx === -1 || slotCenters.some((v) => v === 0)) return;
+
+    dragSessionRef.current = {
+      catId,
+      startClientY: e.clientY,
+      initialCenterY: slotCenters[initialIdx],
+      slotCenters,
+      draftOrder: [...originalOrder],
+      originalOrder,
+    };
+    setDraggingCatId(catId);
+    setDragOffsetY(0);
+    setDragOrder([...originalOrder]);
   };
 
-  const moveCategoryStep = (catId: string, dir: -1 | 1) => {
-    const ids = allCategories.map((c) => c.id);
-    const idx = ids.indexOf(catId);
-    const target = idx + dir;
-    if (idx === -1 || target < 0 || target >= ids.length) return;
-    const next = [...ids];
-    const [moved] = next.splice(idx, 1);
-    next.splice(target, 0, moved);
-    handleReorderCategories(next);
+  const openScheduleModal = (cat: Category) => {
+    setScheduleModalCat(cat);
+    setScheduleDraft(normalizeAvailabilitySchedule(cat.availabilitySchedule));
   };
 
-  const handleDropOnCategory = (targetCatId: string) => {
-    if (!draggedCatId || draggedCatId === targetCatId || !canReorder) {
-      setDraggedCatId(null);
-      setDragOverCatId(null);
-      return;
-    }
-    const ids = allCategories.map((c) => c.id);
-    const fromIdx = ids.indexOf(draggedCatId);
-    const toIdx = ids.indexOf(targetCatId);
-    if (fromIdx !== -1 && toIdx !== -1) {
-      const next = [...ids];
-      const [moved] = next.splice(fromIdx, 1);
-      next.splice(toIdx, 0, moved);
-      handleReorderCategories(next);
-    }
-    setDraggedCatId(null);
-    setDragOverCatId(null);
+  const handleSaveScheduleModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleModalCat) return;
+    handleSaveCategorySchedule(scheduleModalCat, scheduleDraft);
+    setScheduleModalCat(null);
   };
 
   const atCatLimit = resolvedPlan.maxCats !== -1 && allCategories.length >= resolvedPlan.maxCats;
@@ -114,36 +189,12 @@ export const CategoriesPage: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           marginBottom: '18px',
           gap: '12px',
           flexWrap: 'wrap',
         }}
       >
-        <button
-          type="button"
-          onClick={toggleCategorySearch}
-          className="btn s"
-          aria-expanded={isSearchVisible}
-          style={{
-            height: '42px',
-            minHeight: '42px',
-            borderRadius: '12px',
-            padding: '0 16px',
-            fontSize: '13.5px',
-            fontWeight: 800,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            borderColor: isSearchVisible ? 'var(--brand)' : undefined,
-            color: isSearchVisible ? 'var(--brand-ink, #34D399)' : undefined,
-          }}
-        >
-          <Compass size={17} />
-          <span>ابحث</span>
-        </button>
-
         <button
           type="button"
           onClick={openNewCategoryModal}
@@ -180,94 +231,26 @@ export const CategoriesPage: React.FC = () => {
         </button>
       </div>
 
-      {isSearchVisible && (
-        <div
-          style={{
-            ...surfaceCardStyle,
-            border: '1px solid var(--line)',
-            borderRadius: '12px',
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            marginBottom: '16px',
-          }}
-        >
-          <Search size={18} style={{ color: 'var(--muted)', flexShrink: 0 }} />
-          <input
-            ref={catSearchInputRef}
-            type="text"
-            value={searchCatQuery}
-            onChange={(e) => setSearchCatQuery(e.target.value)}
-            placeholder="بحث في الأقسام..."
-            style={{
-              border: 'none',
-              background: 'transparent',
-              width: '100%',
-              outline: 'none',
-              fontSize: '14.5px',
-              color: 'var(--ink)',
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setSearchCatQuery('');
-              setShowCatSearch(false);
-            }}
-            title="إغلاق البحث"
-            aria-label="إغلاق البحث"
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--muted)',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
-              padding: '2px',
-              flexShrink: 0,
-            }}
-          >
-            <X size={17} />
-          </button>
-        </div>
-      )}
-
       {canReorder && (
         <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '10px', fontWeight: 600 }}>
-          يمكنك سحب الأقسام وإفلاتها أو استخدام أزرار الأسهم لترتيب ظهورها في المنيو.
+          اسحب أي قسم من النقاط الست لرفعه أو إنزاله وترتيب ظهوره في المنيو.
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {filteredCategories.map((c, idx) => {
+        {displayCategories.map((c) => {
           const isCatVisible = c.published !== false;
-          const isDragging = draggedCatId === c.id;
-          const isDragOver = dragOverCatId === c.id && draggedCatId !== c.id;
+          const isDragging = draggingCatId === c.id;
+          const hasSchedule = Boolean(c.availabilitySchedule?.enabled);
           return (
             <div
               key={c.id}
-              draggable={canReorder}
-              onDragStart={(e) => {
-                if (!canReorder) return;
-                setDraggedCatId(c.id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(e) => {
-                if (!canReorder) return;
-                e.preventDefault();
-                if (dragOverCatId !== c.id) setDragOverCatId(c.id);
-              }}
-              onDragLeave={() => {
-                if (dragOverCatId === c.id) setDragOverCatId(null);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleDropOnCategory(c.id);
-              }}
-              onDragEnd={() => {
-                setDraggedCatId(null);
-                setDragOverCatId(null);
+              ref={(el) => {
+                if (el) {
+                  rowRefs.current.set(c.id, el);
+                } else {
+                  rowRefs.current.delete(c.id);
+                }
               }}
               style={{
                 ...surfaceCardStyle,
@@ -277,23 +260,50 @@ export const CategoriesPage: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '10px',
-                opacity: isDragging ? 0.5 : isCatVisible ? 1 : 0.65,
-                border: isDragOver ? '1.5px dashed var(--brand)' : surfaceCardStyle.border,
-                transition: 'border-color 0.15s ease, opacity 0.15s ease',
+                opacity: isCatVisible ? 1 : 0.65,
+                position: 'relative',
+                zIndex: isDragging ? 40 : 1,
+                transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.015)` : 'none',
+                border: isDragging ? '1.5px solid var(--brand)' : surfaceCardStyle.border,
+                boxShadow: isDragging ? '0 14px 32px rgba(0, 0, 0, 0.35)' : undefined,
+                transition: isDragging
+                  ? 'box-shadow 0.15s ease, border-color 0.15s ease'
+                  : 'transform 0.18s ease, opacity 0.15s ease',
+                userSelect: draggingCatId ? 'none' : undefined,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                 {canReorder && (
-                  <div title="اسحب لتغيير الترتيب" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onPointerDown={(e) => startHandleDrag(e, c.id)}
+                    title="اسحب لتحريك القسم للأعلى أو للأسفل"
+                    aria-label={`تحريك قسم ${c.n}`}
+                    style={{
+                      touchAction: 'none',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '6px 4px',
+                      margin: '-6px -2px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      flexShrink: 0,
+                      borderRadius: '8px',
+                    }}
+                  >
                     <SixDotDragHandle />
-                  </div>
+                  </button>
                 )}
                 {c.img && (
                   <img
                     src={c.img}
                     alt={c.n}
                     referrerPolicy="no-referrer"
-                    style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line)' }}
+                    style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
                   />
                 )}
                 <div style={{ minWidth: 0 }}>
@@ -308,14 +318,9 @@ export const CategoriesPage: React.FC = () => {
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {c.emoji ? `${c.emoji} ` : ''}{c.n}
+                    {c.n}
                   </span>
-                  {c.subtitle && (
-                    <span style={{ fontSize: '12px', color: 'var(--muted)', display: 'block', marginTop: '2px' }}>
-                      {c.subtitle}
-                    </span>
-                  )}
-                  {c.availabilitySchedule?.enabled && (
+                  {hasSchedule && (
                     <span
                       style={{
                         display: 'inline-flex',
@@ -343,53 +348,6 @@ export const CategoriesPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                {canReorder && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={() => moveCategoryStep(c.id, -1)}
-                      title="تحريك للأعلى"
-                      aria-label="تحريك للأعلى"
-                      style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--line)',
-                        background: 'var(--bg)',
-                        color: 'var(--ink)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        cursor: idx === 0 ? 'not-allowed' : 'pointer',
-                        opacity: idx === 0 ? 0.35 : 1,
-                      }}
-                    >
-                      <ArrowUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={idx === filteredCategories.length - 1}
-                      onClick={() => moveCategoryStep(c.id, 1)}
-                      title="تحريك للأسفل"
-                      aria-label="تحريك للأسفل"
-                      style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--line)',
-                        background: 'var(--bg)',
-                        color: 'var(--ink)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        cursor: idx === filteredCategories.length - 1 ? 'not-allowed' : 'pointer',
-                        opacity: idx === filteredCategories.length - 1 ? 0.35 : 1,
-                      }}
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-                  </>
-                )}
-
                 <button
                   type="button"
                   role="switch"
@@ -404,11 +362,31 @@ export const CategoriesPage: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={() => openScheduleModal(c)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    border: hasSchedule ? '1px solid var(--brand)' : '1px solid var(--line)',
+                    background: hasSchedule ? 'var(--soft)' : 'var(--bg)',
+                    color: hasSchedule ? 'var(--brand-ink, #34D399)' : 'var(--ink)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                  title="تعيين وقت توفر القسم"
+                  aria-label="تعيين وقت توفر القسم"
+                >
+                  <Clock size={14} />
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleOpenEditCategory(c)}
                   style={{
                     width: '32px',
                     height: '32px',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     border: '1px solid var(--line)',
                     background: 'var(--bg)',
                     color: 'var(--ink)',
@@ -427,7 +405,7 @@ export const CategoriesPage: React.FC = () => {
                   style={{
                     width: '32px',
                     height: '32px',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     border: '1px solid rgba(239, 68, 68, 0.35)',
                     background: 'rgba(239, 68, 68, 0.12)',
                     color: '#ef4444',
@@ -445,6 +423,7 @@ export const CategoriesPage: React.FC = () => {
         })}
       </div>
 
+      {/* Add / Edit Category Modal (clean name + image picker only) */}
       {showCatModal && (
         <>
           <div className="drawer-backdrop" onClick={() => setShowCatModal(false)} />
@@ -454,7 +433,7 @@ export const CategoriesPage: React.FC = () => {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 'min(520px, 92vw)',
+              width: 'min(500px, 92vw)',
               maxHeight: '90vh',
               overflowY: 'auto',
               ...surfaceCardStyle,
@@ -527,10 +506,10 @@ export const CategoriesPage: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  padding: catImageInput ? '16px' : '26px 16px',
+                  padding: catImageInput ? '16px' : '24px 16px',
                   borderRadius: '14px',
-                  border: '1.5px dashed var(--line)',
-                  background: 'var(--bg)',
+                  border: '1.5px dashed color-mix(in srgb, var(--line) 85%, transparent)',
+                  background: 'color-mix(in srgb, var(--ink) 3%, transparent)',
                   textAlign: 'center',
                   cursor: 'pointer',
                 }}
@@ -546,7 +525,6 @@ export const CategoriesPage: React.FC = () => {
                         height: '86px',
                         borderRadius: '14px',
                         objectFit: 'cover',
-                        border: '1px solid var(--line)',
                         display: 'block',
                       }}
                     />
@@ -561,9 +539,8 @@ export const CategoriesPage: React.FC = () => {
                       }}
                       style={{
                         background: 'transparent',
-                        border: '1px solid var(--line)',
-                        borderRadius: '9px',
-                        padding: '4px 12px',
+                        border: 'none',
+                        padding: '4px 10px',
                         fontSize: '12px',
                         fontWeight: 700,
                         color: 'var(--muted)',
@@ -586,24 +563,16 @@ export const CategoriesPage: React.FC = () => {
                 )}
               </div>
 
-              <div>
-                <AvailabilityScheduleEditor
-                  value={catScheduleInput}
-                  onChange={setCatScheduleInput}
-                  targetLabel="القسم"
-                  inputStyle={themedInputStyle}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
                 <button
                   type="submit"
                   className="btn p"
                   style={{
-                    height: '42px',
-                    borderRadius: '11px',
-                    padding: '0 22px',
-                    fontSize: '14px',
+                    minWidth: '180px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    padding: '0 26px',
+                    fontSize: '14.5px',
                     fontWeight: 800,
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -611,6 +580,93 @@ export const CategoriesPage: React.FC = () => {
                   }}
                 >
                   {editingCatId ? 'حفظ القسم' : 'إضافة قسم'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Dedicated Schedule / Timer Modal opened from the row Clock button */}
+      {scheduleModalCat && (
+        <>
+          <div className="drawer-backdrop" onClick={() => setScheduleModalCat(null)} />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(540px, 94vw)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              ...surfaceCardStyle,
+              borderRadius: '20px',
+              padding: '20px 22px 22px',
+              zIndex: 99999,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '14px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: 'var(--ink)' }}>
+                توقيت توفر: {scheduleModalCat.n}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setScheduleModalCat(null)}
+                aria-label="إغلاق"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '9px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSaveScheduleModal}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              <AvailabilityScheduleEditor
+                value={scheduleDraft}
+                onChange={setScheduleDraft}
+                targetLabel="القسم"
+                inputStyle={themedInputStyle}
+                flat
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
+                <button
+                  type="submit"
+                  className="btn p"
+                  style={{
+                    minWidth: '180px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    padding: '0 26px',
+                    fontSize: '14.5px',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  حفظ التوقيت
                 </button>
               </div>
             </form>

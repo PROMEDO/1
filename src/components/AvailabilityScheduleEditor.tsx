@@ -20,6 +20,7 @@ interface AvailabilityScheduleEditorProps {
   onChange: (next: AvailabilitySchedule) => void;
   targetLabel?: string; // e.g. 'العنصر' or 'القسم'
   inputStyle?: React.CSSProperties;
+  flat?: boolean;
 }
 
 export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProps> = ({
@@ -27,6 +28,7 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
   onChange,
   targetLabel = 'العنصر',
   inputStyle,
+  flat = false,
 }) => {
   const sched = normalizeAvailabilitySchedule(value);
   const windows = getScheduleWindows(sched);
@@ -74,15 +76,28 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
 
   return (
     <div
-      style={{
-        background: 'var(--panel)',
-        border: '1px solid var(--line)',
-        borderRadius: '14px',
-        padding: '14px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-      }}
+      style={
+        flat
+          ? {
+              background: 'transparent',
+              border: 'none',
+              borderTop: '1px solid color-mix(in srgb, var(--line) 65%, transparent)',
+              borderRadius: 0,
+              padding: '14px 2px 2px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }
+          : {
+              background: 'var(--panel)',
+              border: '1px solid var(--line)',
+              borderRadius: '14px',
+              padding: '14px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }
+      }
     >
       {/* Header + Toggle */}
       <div
@@ -91,37 +106,29 @@ export const AvailabilityScheduleEditor: React.FC<AvailabilityScheduleEditorProp
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
-          flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: '200px' }}>
-          <div
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+          <Clock
+            size={18}
             style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '10px',
-              background: sched.enabled ? 'color-mix(in srgb, var(--brand) 16%, transparent)' : 'var(--bg)',
               color: sched.enabled ? 'var(--brand-ink, #34D399)' : 'var(--muted)',
-              border: '1px solid var(--line)',
-              display: 'grid',
-              placeItems: 'center',
               flexShrink: 0,
+              marginTop: '2px',
             }}
-          >
-            <Clock size={17} />
-          </div>
-          <div>
-            <div style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--ink)' }}>
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--ink)' }}>
               متوفر بأوقات محددة باليوم
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px', lineHeight: 1.45 }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px', lineHeight: 1.5 }}>
               حدد ساعات أو أيام معينة لتوفر هذا {targetLabel} (مثال: وجبة فطور من 8 صباحاً إلى 12 ظهراً)
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12.5px', fontWeight: 800, color: sched.enabled ? '#10b981' : 'var(--muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: sched.enabled ? '#10b981' : 'var(--muted)', whiteSpace: 'nowrap' }}>
             {sched.enabled ? 'مفعّل' : 'متوفر دائماً'}
           </span>
           <button
